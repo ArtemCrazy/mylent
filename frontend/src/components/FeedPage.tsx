@@ -37,7 +37,7 @@ export default function FeedPage() {
         if (silent && knownIdsRef.current.size > 0) {
           const fresh = fetched.filter((p) => !knownIdsRef.current.has(p.id)).map((p) => p.id);
           if (fresh.length > 0) {
-            setNewPostIds((prev) => new Set([...prev, ...fresh]));
+            setNewPostIds((prev) => new Set([...Array.from(prev), ...fresh]));
             setTimeout(() => {
               setNewPostIds((prev) => {
                 const next = new Set(prev);
