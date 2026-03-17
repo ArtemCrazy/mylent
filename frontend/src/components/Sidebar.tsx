@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -88,14 +89,42 @@ function NavLink({ href, label, icon, pathname }: { href: string; label: string;
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [hasToken, setHasToken] = useState(false);
+  useEffect(() => {
+    setHasToken(!!(typeof window !== "undefined" && localStorage.getItem("token")));
+  }, [pathname]);
+
   return (
-    <aside className="w-56 shrink-0 border-r border-[var(--border)] bg-[var(--card)] flex flex-col">
-      <div className="p-4 border-b border-[var(--border)]">
+    <aside className="w-56 shrink-0 border-r border-[var(--border)] bg-[var(--card)] flex flex-col min-h-0">
+      <div className="p-4 border-b border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
         <Link href="/" className="font-semibold text-lg tracking-tight">
           MyLent
         </Link>
+        {pathname !== "/login" && (
+          hasToken ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem("token");
+                  window.location.href = "/login";
+                }
+              }}
+              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] shrink-0"
+            >
+              Выйти
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm text-[var(--accent)] hover:underline shrink-0"
+            >
+              Войти
+            </Link>
+          )
+        )}
       </div>
-      <nav className="p-2 flex-1">
+      <nav className="p-2 flex-1 min-h-0 overflow-y-auto">
         <ul className="space-y-0.5">
           {mainNav.map(({ href, label, icon }) => (
             <li key={href}>
@@ -104,7 +133,7 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-2 border-t border-[var(--border)]">
+      <div className="p-2 border-t border-[var(--border)] shrink-0">
         <NavLink href={profileNav.href} label={profileNav.label} icon={profileNav.icon} pathname={pathname} />
       </div>
     </aside>

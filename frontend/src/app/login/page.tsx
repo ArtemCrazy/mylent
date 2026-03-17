@@ -76,7 +76,11 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="mt-4 text-xs text-[var(--muted)]">
-          На MVP создайте пользователя через скрипт или API.{" "}
+          Логин и пароль задаются при настройке сервера: в файле .env (ADMIN_LOGIN, ADMIN_PASSWORD) или на VPS командой{" "}
+          <code className="bg-[var(--background)] px-1 rounded text-[10px]">docker compose -p mylent exec backend python -m scripts.create_user</code>.
+          Если забыли пароль — выполните эту команду заново и задайте новые данные.
+        </p>
+        <p className="mt-2 text-xs">
           <Link href="/" className="text-[var(--accent)] hover:underline">На главную</Link>
         </p>
       </div>
