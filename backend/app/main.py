@@ -15,6 +15,21 @@ def _add_missing_columns(conn):
     # IF NOT EXISTS avoids transaction abort on duplicate column (PostgreSQL 9.6+)
     conn.execute(text("ALTER TABLE sources ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'other'"))
     conn.execute(text("ALTER TABLE sources ADD COLUMN IF NOT EXISTS show_in_feed BOOLEAN NOT NULL DEFAULT TRUE"))
+    # Fix PostgreSQL sequences if out of sync with actual data (happens after manual inserts)
+    conn.execute(text("""
+        SELECT setval(
+            pg_get_serial_sequence('sources', 'id'),
+            COALESCE((SELECT MAX(id) FROM sources), 0) + 1,
+            false
+        )
+    """))
+    conn.execute(text("""
+        SELECT setval(
+            pg_get_serial_sequence('posts', 'id'),
+            COALESCE((SELECT MAX(id) FROM posts), 0) + 1,
+            false
+        )
+    """))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
