@@ -1,0 +1,30 @@
+# Backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/data/
+backend/**/*.session
+backend/.env
+backend/.pytest_cache/
+*.pyc
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

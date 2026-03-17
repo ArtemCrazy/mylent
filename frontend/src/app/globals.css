@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0c0c0f;
+  --foreground: #e4e4e7;
+  --card: #18181b;
+  --card-hover: #27272a;
+  --border: #27272a;
+  --muted: #71717a;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
