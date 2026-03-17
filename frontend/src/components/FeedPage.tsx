@@ -4,19 +4,35 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type Post } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
 
+const FEED_CATEGORIES = [
+  { value: "", label: "Все" },
+  { value: "news", label: "Новости" },
+  { value: "tech", label: "Технологии" },
+  { value: "ai", label: "ИИ" },
+  { value: "web_studio", label: "Веб-студия" },
+  { value: "sport", label: "Спорт" },
+  { value: "humor", label: "Юмор" },
+  { value: "space", label: "Космос" },
+  { value: "investments", label: "Инвестиции" },
+  { value: "other", label: "Прочее" },
+];
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<string>("");
 
   const loadPosts = useCallback((silent = false) => {
     if (!silent) setLoading(true);
+    const params: Record<string, string | number> = { limit: 50 };
+    if (category) params.category = category;
     api.posts
-      .list({ limit: 50 })
+      .list(params)
       .then(setPosts)
       .catch((e) => !silent && setError(e.message))
       .finally(() => { if (!silent) setLoading(false); });
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     loadPosts(false);
@@ -37,9 +53,25 @@ export default function FeedPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-2xl font-semibold">Лента</h1>
-        <p className="text-sm text-[var(--muted)]">Публикации из подключённых источников. Обновляется автоматически.</p>
+        <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
+        <div className="flex flex-wrap gap-1 border-b border-[var(--border)] pb-2">
+          {FEED_CATEGORIES.map((c) => (
+            <button
+              key={c.value || "all"}
+              type="button"
+              onClick={() => setCategory(c.value)}
+              className={`px-3 py-1.5 rounded-t text-sm font-medium transition-colors ${
+                (c.value === "" && !category) || category === c.value
+                  ? "bg-[var(--accent)] text-white"
+                  : "bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--card-hover)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </header>
       {loading ? (
         <div className="space-y-4">

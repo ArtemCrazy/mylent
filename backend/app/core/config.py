@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     telegram_api_id: str = ""
     telegram_api_hash: str = ""
 
+    # CORS: для продакшена задайте через запятую, например https://ваш-домен.ru,https://mylent.vercel.app
+    cors_origins: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

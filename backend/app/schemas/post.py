@@ -18,6 +18,17 @@ class AIAnalysisResponse(BaseModel):
         from_attributes = True
 
 
+class PostSourceRef(BaseModel):
+    """Минимум данных об источнике для отображения в карточке поста."""
+    id: int
+    title: str
+    category: Optional[str] = None
+    config_json: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class PostBase(BaseModel):
     pass
 
@@ -41,6 +52,7 @@ class PostResponse(PostBase):
     is_hidden: bool = False
     is_archived: bool = False
     ai_analysis: Optional[AIAnalysisResponse] = None
+    source: Optional[PostSourceRef] = None
 
     class Config:
         from_attributes = True

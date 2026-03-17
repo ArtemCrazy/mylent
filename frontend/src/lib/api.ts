@@ -1,4 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const FETCH_TIMEOUT_MS = 15_000;
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -15,7 +16,24 @@ async function request<T>(
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
-  const res = await fetch(`${API_BASE}/api${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof Error) {
+      if (e.name === "AbortError") throw new Error("Сервер не отвечает. Проверьте, что backend запущен на " + API_BASE.replace(/^https?:\/\//, ""));
+      throw new Error(e.message || "Ошибка сети");
+    }
+    throw e;
+  }
+  clearTimeout(timeoutId);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     const detail = err.detail;
@@ -111,6 +129,13 @@ export interface AIAnalysis {
   processed_at: string | null;
 }
 
+export interface PostSourceRef {
+  id: number;
+  title: string;
+  category: string | null;
+  config_json: string | null;
+}
+
 export interface Post {
   id: number;
   source_id: number;
@@ -130,6 +155,7 @@ export interface Post {
   is_hidden: boolean;
   is_archived: boolean;
   ai_analysis: AIAnalysis | null;
+  source: PostSourceRef | null;
 }
 
 export interface Digest {

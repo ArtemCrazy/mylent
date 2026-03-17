@@ -94,6 +94,19 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
     published_at = event.message.date
     if published_at and published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
+
+    media_json = None
+    if getattr(event.message, "media", None):
+        has_photo = event.message.photo is not None
+        has_video = getattr(event.message, "video", None) is not None or (
+            getattr(event.message, "document", None) and getattr(event.message.document, "mime_type", None) or ""
+        ).startswith("video/")
+        if has_photo or has_video:
+            media_json = json.dumps({
+                "photos": [{}] if has_photo else [],
+                "videos": [{}] if has_video else [],
+            })
+
     async with AsyncSessionLocal() as db:
         from sqlalchemy import select
         existing = await db.execute(
@@ -112,7 +125,7 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
             published_at=published_at or now,
             imported_at=now,
             updated_at=now,
-            media_json=None,
+            media_json=media_json,
         )
         db.add(post)
         src = await db.get(Source, source.id)

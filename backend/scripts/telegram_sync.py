@@ -106,6 +106,18 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
             if published_at and published_at.tzinfo is None:
                 published_at = published_at.replace(tzinfo=timezone.utc)
 
+            media_json = None
+            if getattr(msg, "media", None):
+                has_photo = msg.photo is not None
+                has_video = getattr(msg, "video", None) is not None or (
+                    getattr(msg, "document", None) and getattr(msg.document, "mime_type", None) or ""
+                ).startswith("video/")
+                if has_photo or has_video:
+                    media_json = json.dumps({
+                        "photos": [{}] if has_photo else [],
+                        "videos": [{}] if has_video else [],
+                    })
+
             post = Post(
                 source_id=source.id,
                 external_id=eid,
@@ -117,7 +129,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
                 published_at=published_at or now,
                 imported_at=now,
                 updated_at=now,
-                media_json=None,
+                media_json=media_json,
             )
             db.add(post)
             existing_ids.add(eid)

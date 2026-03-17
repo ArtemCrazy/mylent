@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from sqlalchemy import select, and_, or_, desc, asc
 from sqlalchemy.orm import selectinload
 
-from app.schemas.post import PostResponse, PostDetailResponse, PostUpdate, AIAnalysisResponse
+from app.schemas.post import PostResponse, PostDetailResponse, PostUpdate, AIAnalysisResponse, PostSourceRef
 from app.api.deps import CurrentUser, DbSession
 from app.models.post import Post
 from app.models.source import Source
@@ -46,6 +46,15 @@ def _post_to_response(post: Post) -> dict:
         )
     else:
         data["ai_analysis"] = None
+    if getattr(post, "source", None):
+        data["source"] = PostSourceRef(
+            id=post.source.id,
+            title=post.source.title,
+            category=post.source.category,
+            config_json=post.source.config_json,
+        )
+    else:
+        data["source"] = None
     return data
 
 
@@ -54,6 +63,7 @@ async def list_posts(
     db: DbSession,
     current_user: CurrentUser,
     source_id: int | None = None,
+    category: str | None = None,
     topic: str | None = None,
     only_favorites: bool = False,
     only_unread: bool = False,
@@ -68,6 +78,8 @@ async def list_posts(
     q = q.where(Post.is_hidden == False)
     if source_id is not None:
         q = q.where(Post.source_id == source_id)
+    if category is not None and category.strip():
+        q = q.join(Source, Post.source_id == Source.id).where(Source.category == category.strip())
     if only_favorites:
         q = q.where(Post.is_favorite == True)
     if only_unread:
