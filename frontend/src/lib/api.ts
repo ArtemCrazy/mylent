@@ -100,6 +100,20 @@ export const api = {
     update: (body: Partial<Settings>) =>
       request<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   },
+  telegram: {
+    status: () =>
+      request<{ authorized: boolean; has_credentials: boolean; error?: string }>("/telegram/status"),
+    sendPhone: (phone: string) =>
+      request<{ ok: boolean; message: string }>("/telegram/auth/phone", {
+        method: "POST",
+        body: JSON.stringify({ phone }),
+      }),
+    sendCode: (phone: string, code: string, password?: string) =>
+      request<{ ok: boolean; message: string }>("/telegram/auth/code", {
+        method: "POST",
+        body: JSON.stringify({ phone, code, ...(password ? { password } : {}) }),
+      }),
+  },
 };
 
 export interface Source {
