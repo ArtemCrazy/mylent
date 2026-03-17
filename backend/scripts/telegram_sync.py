@@ -89,7 +89,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
         existing = await db.execute(
             select(Post.external_id).where(Post.source_id == source.id)
         )
-        existing_ids = {row[0] for row in existing.scalars()}
+        existing_ids = set(existing.scalars().all())
 
         added = 0
         for msg in messages:
@@ -174,8 +174,9 @@ async def main() -> None:
                 print(f"Готово. Добавлено постов: {added}")
             except Exception as e:
                 await db.rollback()
-                print(f"Ошибка: {e}")
-                raise
+                import traceback
+                print(f"Ошибка синхронизации: {e}")
+                traceback.print_exc()
 
 
 if __name__ == "__main__":
