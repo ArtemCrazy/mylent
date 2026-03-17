@@ -1,4 +1,6 @@
 import json
+import logging
+import traceback
 from fastapi import APIRouter, HTTPException, status, Query
 from app.schemas.source import SourceCreate, SourceUpdate, SourceResponse
 from app.api.deps import CurrentUser, DbSession
@@ -6,6 +8,7 @@ from app.models.source import Source
 from app.services.telegram_preview import get_channel_public_info
 from sqlalchemy import select
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
@@ -24,24 +27,30 @@ async def list_sources(db: DbSession, current_user: CurrentUser):
 
 @router.post("", response_model=SourceResponse, status_code=status.HTTP_201_CREATED)
 async def create_source(body: SourceCreate, db: DbSession, current_user: CurrentUser):
-    existing = await db.execute(select(Source).where(Source.slug == body.slug))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Source with this slug already exists")
-    source = Source(
-        type=body.type,
-        title=body.title,
-        slug=body.slug,
-        category=body.category or "other",
-        url=body.url,
-        is_active=body.is_active,
-        show_in_feed=body.show_in_feed,
-        priority=body.priority,
-        config_json=body.config_json,
-    )
-    db.add(source)
-    await db.flush()
-    await db.refresh(source)
-    return source
+    try:
+        existing = await db.execute(select(Source).where(Source.slug == body.slug))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Source with this slug already exists")
+        source = Source(
+            type=body.type,
+            title=body.title,
+            slug=body.slug,
+            category=body.category or "other",
+            url=body.url,
+            is_active=body.is_active,
+            show_in_feed=body.show_in_feed,
+            priority=body.priority,
+            config_json=body.config_json,
+        )
+        db.add(source)
+        await db.flush()
+        await db.refresh(source)
+        return source
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("create_source error: %s\n%s", e, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"DB error: {type(e).__name__}: {e}")
 
 
 @router.get("/{source_id}", response_model=SourceResponse)
