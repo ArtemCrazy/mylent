@@ -49,10 +49,24 @@ jobs:
             # Restore Telegram session file from GitHub Secret (base64 encoded)
             if [ -n "${{ secrets.TELEGRAM_SESSION }}" ]; then
               printf '%s' "${{ secrets.TELEGRAM_SESSION }}" | base64 -d > /tmp/tg.session
-              docker cp /tmp/tg.session mylent-backend-1:/app/data/telegram_session.session
-              docker cp /tmp/tg.session mylent-sync-1:/app/data/telegram_session.session 2>/dev/null || true
+              TG_SIZE=$(stat -c%s /tmp/tg.session 2>/dev/null || echo 0)
+              echo "Session file decoded: ${TG_SIZE} bytes"
+              if [ "$TG_SIZE" -gt 1000 ]; then
+                docker cp /tmp/tg.session mylent-backend-1:/app/data/telegram_session.session
+                echo "Copied to backend"
+                docker cp /tmp/tg.session mylent-sync-1:/app/data/telegram_session.session 2>/dev/null && echo "Copied to sync" || true
+                # Verify copy inside container
+                docker exec mylent-backend-1 ls -la /app/data/telegram_session.session 2>/dev/null || echo "WARNING: file not found in backend container"
+                # Restart containers so they pick up fresh session
+                docker restart mylent-backend-1 && echo "Backend restarted"
+                docker restart mylent-sync-1 && echo "Sync restarted"
+                sleep 5
+              else
+                echo "WARNING: session file too small (${TG_SIZE} bytes), skipping restore"
+              fi
               rm -f /tmp/tg.session
-              echo "Telegram session restored"
+            else
+              echo "TELEGRAM_SESSION secret is empty — skipping session restore"
             fi
             echo "=== Container status ==="
             docker ps -a --filter "name=mylent"
