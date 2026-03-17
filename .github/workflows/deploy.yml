@@ -42,8 +42,6 @@ jobs:
                 && sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env \
                 || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" >> .env
             fi
-            # Copy final .env to docker/ so docker compose reads it from cwd
-            cp .env docker/.env
             cd docker
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
