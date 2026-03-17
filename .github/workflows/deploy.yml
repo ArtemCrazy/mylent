@@ -27,6 +27,10 @@ jobs:
               && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001|" .env \
               || echo "NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001" >> .env
             echo "NEXT_PUBLIC_API_URL set to http://${VPS_IP}:8001"
+            # Set CORS_ORIGINS so backend allows requests from the frontend origin
+            grep -q "^CORS_ORIGINS=" .env \
+              && sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=http://${VPS_IP}:3001|" .env \
+              || echo "CORS_ORIGINS=http://${VPS_IP}:3001" >> .env
             # Inject Telegram credentials from GitHub Secrets into .env
             if [ -n "${{ secrets.TELEGRAM_API_ID }}" ]; then
               grep -q "^TELEGRAM_API_ID=" .env \
@@ -38,6 +42,8 @@ jobs:
                 && sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env \
                 || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" >> .env
             fi
+            # Copy final .env to docker/ so docker compose reads it from cwd
+            cp .env docker/.env
             cd docker
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
