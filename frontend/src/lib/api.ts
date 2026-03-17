@@ -1,5 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_LONG_MS = 60_000;
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -8,7 +9,8 @@ function getToken(): string | null {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs = FETCH_TIMEOUT_MS
 ): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {
@@ -17,7 +19,7 @@ async function request<T>(
     ...options.headers,
   };
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/api${path}`, {
@@ -107,12 +109,12 @@ export const api = {
       request<{ ok: boolean; message: string }>("/telegram/auth/phone", {
         method: "POST",
         body: JSON.stringify({ phone }),
-      }),
+      }, FETCH_TIMEOUT_LONG_MS),
     sendCode: (phone: string, code: string, password?: string) =>
       request<{ ok: boolean; message: string }>("/telegram/auth/code", {
         method: "POST",
         body: JSON.stringify({ phone, code, ...(password ? { password } : {}) }),
-      }),
+      }, FETCH_TIMEOUT_LONG_MS),
   },
 };
 

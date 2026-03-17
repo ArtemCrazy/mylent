@@ -21,7 +21,7 @@ def _make_client() -> TelegramClient:
     settings = get_settings()
     session_path = settings.telegram_session_path or "./data/telegram_session"
     os.makedirs(os.path.dirname(session_path) or ".", exist_ok=True)
-    return TelegramClient(session_path, int(settings.telegram_api_id), settings.telegram_api_hash)
+    return TelegramClient(session_path, int((settings.telegram_api_id or "").strip()), (settings.telegram_api_hash or "").strip())
 
 
 @router.get("/status")
@@ -56,12 +56,23 @@ async def auth_phone(body: PhoneIn, _: CurrentUser):
     settings = get_settings()
     if not (settings.telegram_api_id or "").strip():
         raise HTTPException(400, "TELEGRAM_API_ID не задан на сервере")
-    _client = _make_client()
-    await _client.connect()
-    result = await _client.send_code_request(body.phone)
-    _state["phone"] = body.phone
-    _state["phone_code_hash"] = result.phone_code_hash
-    return {"ok": True, "message": "Код отправлен в Telegram"}
+    try:
+        _client = _make_client()
+        await _client.connect()
+        result = await _client.send_code_request(body.phone.strip())
+        _state["phone"] = body.phone.strip()
+        _state["phone_code_hash"] = result.phone_code_hash
+        return {"ok": True, "message": "Код отправлен в Telegram"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if _client:
+            try:
+                await _client.disconnect()
+            except Exception:
+                pass
+            _client = None
+        raise HTTPException(500, f"Ошибка подключения к Telegram: {e}")
 
 
 @router.post("/auth/code")
