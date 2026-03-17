@@ -56,7 +56,7 @@ function parseMedia(mediaJson: string | null): MediaItem[] {
   }
 }
 
-export function PostCard({ post }: { post: Post }) {
+export function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const text = post.raw_text || post.cleaned_text || "";
   const isLong = text.length > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(false);
@@ -67,7 +67,11 @@ export function PostCard({ post }: { post: Post }) {
   const media = parseMedia(post.media_json);
 
   return (
-    <article className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors">
+    <article className={`rounded-xl border bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors ${
+      isNew
+        ? "border-blue-400/60 shadow-[0_0_18px_3px_rgba(96,165,250,0.25)] animate-glow-pulse"
+        : "border-[var(--border)]"
+    }`}>
       {/* 1. Время */}
       <div className="flex items-center gap-2 mb-2">
         <time className="text-xs text-[var(--muted)]" dateTime={post.published_at}>

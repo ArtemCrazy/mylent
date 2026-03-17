@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Post } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
 
@@ -17,11 +17,15 @@ const FEED_CATEGORIES = [
   { value: "other", label: "Прочее" },
 ];
 
+const NEW_POST_TTL = 60_000; // glow fades after 60s
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("");
+  const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
+  const knownIdsRef = useRef<Set<number>>(new Set());
 
   const loadPosts = useCallback((silent = false) => {
     if (!silent) setLoading(true);
@@ -29,7 +33,23 @@ export default function FeedPage() {
     if (category) params.category = category;
     api.posts
       .list(params)
-      .then(setPosts)
+      .then((fetched) => {
+        if (silent && knownIdsRef.current.size > 0) {
+          const fresh = fetched.filter((p) => !knownIdsRef.current.has(p.id)).map((p) => p.id);
+          if (fresh.length > 0) {
+            setNewPostIds((prev) => new Set([...prev, ...fresh]));
+            setTimeout(() => {
+              setNewPostIds((prev) => {
+                const next = new Set(prev);
+                fresh.forEach((id) => next.delete(id));
+                return next;
+              });
+            }, NEW_POST_TTL);
+          }
+        }
+        knownIdsRef.current = new Set(fetched.map((p) => p.id));
+        setPosts(fetched);
+      })
       .catch((e) => !silent && setError(e.message))
       .finally(() => { if (!silent) setLoading(false); });
   }, [category]);
@@ -92,7 +112,7 @@ export default function FeedPage() {
         <ul className="space-y-4">
           {posts.map((post) => (
             <li key={post.id}>
-              <PostCard post={post} />
+              <PostCard post={post} isNew={newPostIds.has(post.id)} />
             </li>
           ))}
         </ul>
