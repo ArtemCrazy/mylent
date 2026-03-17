@@ -65,21 +65,14 @@ cd mylent
 
 ## Шаг 4. Создать файл .env на сервере
 
+В корне проекта есть `.env.example` с портами 8001 и 3001. Скопируйте его и подставьте свои данные:
+
 ```bash
+cp /root/mylent/.env.example /root/mylent/.env
 nano /root/mylent/.env
 ```
 
-Вставьте (подставьте свои значения):
-
-```env
-SECRET_KEY=придумайте-длинную-случайную-строку-минимум-32-символа
-NEXT_PUBLIC_API_URL=http://155.212.219.106:8000
-CORS_ORIGINS=http://155.212.219.106:3000,http://155.212.219.106
-TELEGRAM_API_ID=ваш_api_id
-TELEGRAM_API_HASH=ваш_api_hash
-```
-
-Сохраните: `Ctrl+O`, Enter, выход: `Ctrl+X`.
+Заполните `SECRET_KEY`, `TELEGRAM_API_ID` и `TELEGRAM_API_HASH`. `NEXT_PUBLIC_API_URL` и `CORS_ORIGINS` уже указаны для портов 8001 и 3001. Сохраните: `Ctrl+O`, Enter, выход: `Ctrl+X`.
 
 Позже, когда будет домен и Nginx, замените адреса на `https://ваш-домен.ru` и `https://ваш-домен.ru/api`.
 
@@ -136,8 +129,8 @@ docker compose exec -d backend python -m scripts.telegram_sync_loop
 
 ## Итог
 
-- Сайт: **http://155.212.219.106:3000**
-- API: **http://155.212.219.106:8000**
+- Сайт: **http://155.212.219.106:3001**
+- API: **http://155.212.219.106:8001**
 - Доступ никому не передаётся — все команды выполняете вы на своём VPS.
 
-Когда появится домен, настройте Nginx (прокси на 3000 и 8000) и поменяйте в `.env` значения `NEXT_PUBLIC_API_URL` и `CORS_ORIGINS` на ваш домен.
+Когда появится домен, настройте Nginx (прокси на 3001 и 8001) и поменяйте в `.env` значения `NEXT_PUBLIC_API_URL` и `CORS_ORIGINS` на ваш домен.

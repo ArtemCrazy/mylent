@@ -45,8 +45,8 @@ echo "[3/5] Настройка .env ..."
 if [ ! -f "$WORKDIR/.env" ]; then
   cat > "$WORKDIR/.env" << 'ENVFILE'
 SECRET_KEY=change-me-min-32-chars-mylent-prod-key
-NEXT_PUBLIC_API_URL=http://155.212.219.106:8000
-CORS_ORIGINS=http://155.212.219.106:3000,http://155.212.219.106
+NEXT_PUBLIC_API_URL=http://155.212.219.106:8001
+CORS_ORIGINS=http://155.212.219.106:3001,http://155.212.219.106
 TELEGRAM_API_ID=
 TELEGRAM_API_HASH=
 ENVFILE
@@ -65,7 +65,7 @@ docker compose up -d
 echo "[5/5] Ожидание запуска сервисов..."
 sleep 10
 for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health 2>/dev/null | grep -q 200; then
+  if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health 2>/dev/null | grep -q 200; then
     break
   fi
   sleep 2
@@ -74,8 +74,8 @@ done
 echo ""
 echo "=============================================="
 echo "  MyLent развёрнут."
-echo "  Сайт:    http://155.212.219.106:3000"
-echo "  API:     http://155.212.219.106:8000"
+echo "  Сайт:    http://155.212.219.106:3001"
+echo "  API:     http://155.212.219.106:8001"
 echo "=============================================="
 echo ""
 echo "Дальше выполните на сервере (по очереди):"

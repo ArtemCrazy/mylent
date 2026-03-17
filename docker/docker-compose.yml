@@ -1,5 +1,5 @@
-version: "3.8"
-
+# MyLent — только порты 3001, 8001, 5433. Всё в /root/mylent, остальные проекты на VPS не трогаем.
+name: mylent
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: mylent
       POSTGRES_DB: mylent
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.backend
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://mylent:mylent@postgres:5432/mylent
       SECRET_KEY: ${SECRET_KEY:-change-me}
@@ -42,10 +42,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.frontend
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
-      # Для продакшена задайте PUBLIC_URL (например https://ваш-домен.ru) — фронт пойдёт в /api
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
     depends_on:
       - backend
 
