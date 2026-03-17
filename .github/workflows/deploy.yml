@@ -1,0 +1,27 @@
+# Деплой MyLent на VPS при пуше в main. Без ручного SSH и git pull.
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Кнопка "Run workflow" в Actions для ручного запуска
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd /root/mylent
+            git pull origin main
+            cd docker
+            docker compose -p mylent build --quiet
+            docker compose -p mylent up -d
+            echo "Deploy finished. MyLent only: /root/mylent, ports 3001 8001 5433."
