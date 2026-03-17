@@ -50,23 +50,29 @@ async def get_channel_public_info(username: str) -> dict[str, Any]:
     settings = get_settings()
     api_id = (settings.telegram_api_id or "").strip()
     api_hash = (settings.telegram_api_hash or "").strip()
+    # Если нет credentials или сессии — не можем проверить, считаем публичным
     if not api_id or not api_hash:
+        result["has_public_link"] = True
         return result
     try:
         api_id_int = int(api_id)
     except ValueError:
+        result["has_public_link"] = True
         return result
     session_path = settings.telegram_session_path or "./data/telegram_session"
     if not os.path.exists(session_path + ".session") and not os.path.exists(session_path):
+        result["has_public_link"] = True
         return result
     client = TelegramClient(session_path, api_id_int, api_hash)
     try:
         await client.connect()
         if not await client.is_user_authorized():
+            # Нет авторизации — не можем проверить, считаем публичным
+            result["has_public_link"] = True
             return result
         entity = await client.get_entity(username)
         if not entity_has_public_link(entity):
-            return result
+            return result  # has_public_link остаётся False — канал точно invite-only
         result["has_public_link"] = True
         buf = BytesIO()
         await client.download_profile_photo(entity, file=buf)
@@ -76,6 +82,8 @@ async def get_channel_public_info(username: str) -> dict[str, Any]:
             result["avatar_base64"] = base64.b64encode(data).decode("ascii")
         return result
     except Exception:
+        # Не удалось подключиться или получить entity — считаем публичным
+        result["has_public_link"] = True
         return result
     finally:
         await client.disconnect()
