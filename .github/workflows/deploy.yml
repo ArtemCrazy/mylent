@@ -24,6 +24,11 @@ jobs:
             cd docker
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
-            sleep 8
+            sleep 10
+            echo "=== Container status ==="
+            docker ps -a --filter "name=mylent"
+            echo "=== Backend logs (last 30 lines) ==="
+            docker logs mylent-backend-1 --tail 30 2>&1 || true
+            echo "=== Reset password ==="
             docker exec mylent-backend-1 python -m scripts.reset_password && echo "Password reset OK" || echo "Password reset FAILED"
             echo "Deploy finished. MyLent only: /root/mylent, ports 3001 8001 5433."
