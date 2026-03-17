@@ -36,6 +36,14 @@ jobs:
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
             sleep 10
+            # Restore Telegram session file from GitHub Secret (base64 encoded)
+            if [ -n "${{ secrets.TELEGRAM_SESSION }}" ]; then
+              printf '%s' "${{ secrets.TELEGRAM_SESSION }}" | base64 -d > /tmp/tg.session
+              docker cp /tmp/tg.session mylent-backend-1:/app/data/telegram_session.session
+              docker cp /tmp/tg.session mylent-sync-1:/app/data/telegram_session.session 2>/dev/null || true
+              rm -f /tmp/tg.session
+              echo "Telegram session restored"
+            fi
             echo "=== Container status ==="
             docker ps -a --filter "name=mylent"
             echo "=== Backend logs (last 30 lines) ==="
