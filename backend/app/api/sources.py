@@ -34,6 +34,7 @@ async def create_source(body: SourceCreate, db: DbSession, current_user: Current
         category=body.category or "other",
         url=body.url,
         is_active=body.is_active,
+        show_in_feed=body.show_in_feed,
         priority=body.priority,
         config_json=body.config_json,
     )

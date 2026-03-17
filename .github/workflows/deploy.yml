@@ -21,6 +21,12 @@ jobs:
             set -e
             cd /root/mylent
             git pull origin main
+            # Set NEXT_PUBLIC_API_URL so frontend talks to the real VPS backend (not localhost)
+            VPS_IP=$(curl -sf https://api.ipify.org || hostname -I | awk '{print $1}')
+            grep -q "^NEXT_PUBLIC_API_URL=" .env \
+              && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001|" .env \
+              || echo "NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001" >> .env
+            echo "NEXT_PUBLIC_API_URL set to http://${VPS_IP}:8001"
             # Inject Telegram credentials from GitHub Secrets into .env
             if [ -n "${{ secrets.TELEGRAM_API_ID }}" ]; then
               grep -q "^TELEGRAM_API_ID=" .env \
