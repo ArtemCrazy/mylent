@@ -102,11 +102,7 @@ export default function FeedPage() {
       ) : posts.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center text-[var(--muted)]">
           <p className="mb-2">Пока нет публикаций.</p>
-          <p className="text-sm mb-4">Добавленные каналы сами по себе не подтягивают посты. Нужно запустить импорт из папки backend:</p>
-          <code className="block text-left bg-[var(--background)] rounded-lg p-4 text-[var(--foreground)] text-sm">
-            .\.venv\Scripts\python.exe -m scripts.telegram_sync
-          </code>
-          <p className="text-sm mt-4">Лента обновляется автоматически каждые 45 секунд.</p>
+          <p className="text-sm">Добавьте каналы в разделе «Источники» и один раз войдите в Telegram на сервере: <code className="bg-[var(--background)] px-1.5 py-0.5 rounded">docker compose -p mylent exec -it backend python -m scripts.telegram_sync</code>. Парсер подтянет посты автоматически.</p>
         </div>
       ) : (
         <ul className="space-y-4">

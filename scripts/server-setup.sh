@@ -49,8 +49,11 @@ NEXT_PUBLIC_API_URL=http://155.212.219.106:8001
 CORS_ORIGINS=http://155.212.219.106:3001,http://155.212.219.106
 TELEGRAM_API_ID=
 TELEGRAM_API_HASH=
+ADMIN_LOGIN=
+ADMIN_PASSWORD=
+TELEGRAM_CHANNELS=
 ENVFILE
-  echo "    Создан .env. Потом добавьте TELEGRAM_API_ID и TELEGRAM_API_HASH и смените SECRET_KEY."
+  echo "    Создан .env. Заполните TELEGRAM_*, SECRET_KEY и при желании ADMIN_LOGIN, ADMIN_PASSWORD, TELEGRAM_CHANNELS (каналы через запятую)."
 else
   echo "    .env уже есть."
 fi

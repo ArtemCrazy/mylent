@@ -30,6 +30,9 @@ services:
       TELEGRAM_SESSION_PATH: /app/data/telegram_session
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      TELEGRAM_CHANNELS: ${TELEGRAM_CHANNELS:-}
     volumes:
       # Сессия Telegram (создаётся после первого запуска telegram_sync)
       - backend_data:/app/data
@@ -37,6 +40,7 @@ services:
       postgres:
         condition: service_healthy
 
+  # Парсер Telegram: подтягивает посты из добавленных каналов раз в N минут (без ручного exec).
   sync:
     build:
       context: ..
@@ -48,12 +52,14 @@ services:
       TELEGRAM_SESSION_PATH: /app/data/telegram_session
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
-      SYNC_INTERVAL_MINUTES: "1"
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-10}
     volumes:
       - backend_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
+      backend:
+        condition: service_started
     restart: unless-stopped
 
   frontend:

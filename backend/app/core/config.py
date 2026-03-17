@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # CORS: для продакшена задайте через запятую, например https://ваш-домен.ru,https://mylent.vercel.app
     cors_origins: str = ""
 
+    # Авто-создание при первом запуске (деплой без ручных шагов)
+    admin_login: str = ""  # Email первого пользователя; если задан и пользователей нет — создаётся
+    admin_password: str = ""  # Пароль (минимум 8 символов)
+    telegram_channels: str = ""  # Каналы через запятую: durov,techcrunch — создаются как источники типа telegram
+
     class Config:
         env_file = ".env"
         extra = "ignore"

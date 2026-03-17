@@ -31,11 +31,23 @@ async function request<T>(
     clearTimeout(timeoutId);
     if (e instanceof Error) {
       if (e.name === "AbortError") throw new Error("Сервер не отвечает. Проверьте, что backend запущен на " + API_BASE.replace(/^https?:\/\//, ""));
+      const isNetworkError = e.message === "Failed to fetch" || e.message === "Load failed" || e.message?.includes("NetworkError");
+      if (isNetworkError) {
+        const host = API_BASE.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        throw new Error(`Нет связи с API (${host}). Запустите backend: в папке backend выполните «uvicorn app.main:app --reload --port 8000».`);
+      }
       throw new Error(e.message || "Ошибка сети");
     }
     throw e;
   }
   clearTimeout(timeoutId);
+  if (res.status === 401) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    throw new Error("Not authenticated");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     const detail = err.detail;
