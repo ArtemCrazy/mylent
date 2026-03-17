@@ -14,6 +14,7 @@ class Source(Base):
     category: Mapped[str | None] = mapped_column(String(50), nullable=True, default="other")  # news, tech, web_studio, other
     url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    show_in_feed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     priority: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # telegram: channel_id, username, etc.
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

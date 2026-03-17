@@ -27,21 +27,6 @@ async def create_source(body: SourceCreate, db: DbSession, current_user: Current
     existing = await db.execute(select(Source).where(Source.slug == body.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Source with this slug already exists")
-    if body.type == "telegram" and body.config_json:
-        try:
-            cfg = json.loads(body.config_json)
-            ch = cfg.get("channel_username") if isinstance(cfg, dict) else None
-            if isinstance(ch, str) and ch.strip():
-                info = await get_channel_public_info(ch)
-                if not info.get("has_public_link"):
-                    raise HTTPException(
-                        status_code=400,
-                        detail="У этого канала нет публичной ссылки (только приглашение). Добавлять можно только каналы с публичным username, например @channel или t.me/channel.",
-                    )
-        except HTTPException:
-            raise
-        except Exception:
-            pass
     source = Source(
         type=body.type,
         title=body.title,

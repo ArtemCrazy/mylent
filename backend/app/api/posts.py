@@ -75,11 +75,13 @@ async def list_posts(
     offset: int = 0,
 ):
     q = select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis))
+    q = q.join(Source, Post.source_id == Source.id)
     q = q.where(Post.is_hidden == False)
+    q = q.where(Source.show_in_feed == True)
     if source_id is not None:
         q = q.where(Post.source_id == source_id)
     if category is not None and category.strip():
-        q = q.join(Source, Post.source_id == Source.id).where(Source.category == category.strip())
+        q = q.where(Source.category == category.strip())
     if only_favorites:
         q = q.where(Post.is_favorite == True)
     if only_unread:

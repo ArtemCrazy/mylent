@@ -16,6 +16,10 @@ def _add_category_column_if_missing(conn):
         conn.execute(text("ALTER TABLE sources ADD COLUMN category VARCHAR(50) DEFAULT 'other'"))
     except Exception:
         pass  # column already exists
+    try:
+        conn.execute(text("ALTER TABLE sources ADD COLUMN show_in_feed BOOLEAN NOT NULL DEFAULT TRUE"))
+    except Exception:
+        pass  # column already exists
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

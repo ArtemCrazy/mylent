@@ -64,7 +64,7 @@ export const api = {
     list: () => request<Source[]>("/sources"),
     channelPreview: (username: string) =>
       request<{ has_public_link: boolean; avatar_base64: string | null }>(`/sources/channel-preview?username=${encodeURIComponent(username)}`),
-    create: (body: { type: string; title: string; slug: string; category?: string; url?: string; config_json?: string }) =>
+    create: (body: { type: string; title: string; slug: string; category?: string; url?: string; config_json?: string; show_in_feed?: boolean }) =>
       request<Source>("/sources", { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: Partial<Source>) =>
       request<Source>(`/sources/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -110,6 +110,7 @@ export interface Source {
   category: string | null;
   url: string | null;
   is_active: boolean;
+  show_in_feed: boolean;
   priority: number;
   config_json: string | null;
   last_synced_at: string | null;

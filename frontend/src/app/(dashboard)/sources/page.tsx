@@ -57,9 +57,11 @@ export default function SourcesPage() {
   const [title, setTitle] = useState("");
   const [channel, setChannel] = useState("");
   const [category, setCategory] = useState<string>("other");
+  const [showInFeed, setShowInFeed] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editShowInFeed, setEditShowInFeed] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [hasPublicLink, setHasPublicLink] = useState<boolean | null>(null);
@@ -124,10 +126,12 @@ export default function SourcesPage() {
         category: category || "other",
         url: `https://t.me/${ch}`,
         config_json: JSON.stringify({ channel_username: ch, avatar_base64: avatarPreview || undefined }),
+        show_in_feed: showInFeed,
       });
       setTitle("");
       setChannel("");
       setCategory("other");
+      setShowInFeed(true);
       setAvatarPreview(null);
       setHasPublicLink(null);
       setShowForm(false);
@@ -155,12 +159,13 @@ export default function SourcesPage() {
     setEditingId(s.id);
     setEditTitle(s.title);
     setEditCategory(s.category || "other");
+    setEditShowInFeed(s.show_in_feed ?? true);
   }
 
   async function handleSaveEdit() {
     if (!editingId) return;
     try {
-      await api.sources.update(editingId, { title: editTitle.trim(), category: editCategory });
+      await api.sources.update(editingId, { title: editTitle.trim(), category: editCategory, show_in_feed: editShowInFeed });
       setEditingId(null);
       loadSources();
     } catch {
@@ -228,6 +233,16 @@ export default function SourcesPage() {
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showInFeed}
+              onChange={(e) => setShowInFeed(e.target.checked)}
+              className="w-4 h-4 accent-[var(--accent)]"
+            />
+            <span className="text-sm text-[var(--foreground)]">Выводить в ленте</span>
+            <span className="text-xs text-[var(--muted)]">(если снять — посты парсятся, но не показываются)</span>
+          </label>
           <div className="flex gap-4 items-start">
             <div className="shrink-0 w-14 h-14 rounded-full bg-[var(--card-hover)] overflow-hidden flex items-center justify-center text-[var(--muted)] text-2xl">
               {avatarLoading ? (
@@ -321,6 +336,15 @@ export default function SourcesPage() {
                                 <option key={c.value} value={c.value}>{c.label}</option>
                               ))}
                             </select>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={editShowInFeed}
+                                onChange={(e) => setEditShowInFeed(e.target.checked)}
+                                className="w-4 h-4 accent-[var(--accent)]"
+                              />
+                              <span className="text-sm text-[var(--foreground)]">Выводить в ленте</span>
+                            </label>
                             <div className="flex gap-2 flex-wrap items-center">
                               <button
                                 type="button"
@@ -349,6 +373,9 @@ export default function SourcesPage() {
                           <>
                             <span className="font-medium">{s.title}</span>
                             <span className="text-xs text-[var(--muted)] ml-2">({s.type})</span>
+                            {!s.show_in_feed && (
+                              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">скрыт из ленты</span>
+                            )}
                             {s.url && (
                               <a href={s.url} target="_blank" rel="noopener noreferrer" className="block text-sm text-[var(--accent)] hover:underline mt-0.5">
                                 {s.url}
