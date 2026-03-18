@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Post } from "@/lib/api";
+import { api, type Post } from "@/lib/api";
 
 const COLLAPSE_THRESHOLD = 2000;
 
@@ -56,30 +56,40 @@ function parseMedia(mediaJson: string | null): MediaItem[] {
   }
 }
 
-export function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
+export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post; isNew?: boolean; onToggleFavorite?: (post: Post) => void }) {
   const text = post.raw_text || post.cleaned_text || "";
   const isLong = text.length > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(false);
+  const [isFav, setIsFav] = useState(post.is_favorite);
+  const [toggling, setToggling] = useState(false);
   const displayText = isLong && !expanded ? text.slice(0, COLLAPSE_THRESHOLD) + "…" : text;
 
   const avatar = post.source ? getSourceAvatar(post.source.config_json) : null;
   const categoryLabel = post.source ? getCategoryLabel(post.source.category) : "";
   const media = parseMedia(post.media_json);
 
+  async function handleFavorite(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (toggling) return;
+    setToggling(true);
+    try {
+      await api.posts.favorite(post.id);
+      setIsFav((f) => !f);
+      onToggleFavorite?.(post);
+    } catch { /* ignore */ }
+    setToggling(false);
+  }
+
   return (
-    <article className={`rounded-xl border bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors ${
+    <article className={`group relative rounded-xl border bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors ${
       isNew
         ? "border-blue-400/60 shadow-[0_0_18px_3px_rgba(96,165,250,0.25)] animate-glow-pulse"
         : "border-[var(--border)]"
     }`}>
-      {/* 1. Время */}
-      <div className="flex items-center gap-2 mb-2">
-        <time className="text-xs text-[var(--muted)]" dateTime={post.published_at}>
-          {formatDate(post.published_at)}
-        </time>
-        {/* 2. Иконка источника */}
+      {/* Header: avatar + source name + time | category right */}
+      <div className="flex items-center gap-2.5 mb-3">
         {post.source && (
-          <div className="w-6 h-6 rounded-full bg-[var(--card-hover)] overflow-hidden flex items-center justify-center shrink-0 text-[var(--muted)] text-xs">
+          <div className="w-8 h-8 rounded-full bg-[var(--card-hover)] overflow-hidden flex items-center justify-center shrink-0 text-[var(--muted)] text-xs">
             {avatar ? (
               <img src={`data:image/jpeg;base64,${avatar}`} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -87,16 +97,25 @@ export function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean 
             )}
           </div>
         )}
-        {/* 3. Категория */}
+        <div className="flex flex-col min-w-0">
+          {post.source && (
+            <span className="text-sm font-medium text-[var(--foreground)] truncate leading-tight">
+              {post.source.title}
+            </span>
+          )}
+          <time className="text-xs text-[var(--muted)] leading-tight" dateTime={post.published_at}>
+            {formatDate(post.published_at)}
+          </time>
+        </div>
+        {/* Category — right corner */}
         {categoryLabel && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--background)] text-[var(--muted)]">
+          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[var(--background)] text-[var(--muted)] shrink-0">
             {categoryLabel}
           </span>
         )}
-        {post.is_favorite && <span className="text-amber-500 ml-auto" title="В избранном">★</span>}
       </div>
 
-      {/* 4. Текст (полный; свёрнут только если > 2000 символов) */}
+      {/* Text */}
       <div className="mb-3">
         {post.title?.trim() && (
           <h3 className="font-medium text-[var(--foreground)] mb-1">{post.title}</h3>
@@ -115,23 +134,9 @@ export function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean 
         )}
       </div>
 
-      {/* 5. Ссылка на источник */}
-      {post.original_url && (
-        <p className="mb-3">
-          <a
-            href={post.original_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[var(--accent)] hover:underline"
-          >
-            Открыть в источнике →
-          </a>
-        </p>
-      )}
-
-      {/* 6. Фото и видео */}
+      {/* Media */}
       {media.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mb-3">
           {media.map((m, i) => (
             <div key={i} className="rounded-lg overflow-hidden bg-[var(--background)]">
               {m.type === "photo" && m.url && (
@@ -157,10 +162,47 @@ export function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean 
         </div>
       )}
 
-      <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs">
+      {/* Footer */}
+      <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs">
         <Link href={`/post/${post.id}`} className="text-[var(--accent)] hover:underline">
           Страница поста
         </Link>
+      </div>
+
+      {/* Hover actions — right side */}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Link to source */}
+        {post.original_url && (
+          <a
+            href={post.original_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Открыть в источнике"
+            className="w-8 h-8 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        )}
+        {/* Favorite toggle */}
+        <button
+          type="button"
+          onClick={handleFavorite}
+          disabled={toggling}
+          title={isFav ? "Убрать из избранного" : "В избранное"}
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+            isFav
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25"
+              : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-amber-500 hover:border-amber-500/40"
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
       </div>
     </article>
   );

@@ -108,7 +108,11 @@ export default function FeedPage() {
         <ul className="space-y-4">
           {posts.map((post) => (
             <li key={post.id}>
-              <PostCard post={post} isNew={newPostIds.has(post.id)} />
+              <PostCard
+              post={post}
+              isNew={newPostIds.has(post.id)}
+              onToggleFavorite={(p) => setPosts((prev) => prev.map((x) => x.id === p.id ? { ...x, is_favorite: !x.is_favorite } : x))}
+            />
             </li>
           ))}
         </ul>
