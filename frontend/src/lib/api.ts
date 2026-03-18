@@ -120,6 +120,28 @@ export const api = {
     update: (body: Partial<Settings>) =>
       request<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   },
+  signals: {
+    list: () => request<Signal[]>("/signals"),
+    get: (id: number) => request<Signal>(`/signals/${id}`),
+    create: (body: { name: string; type?: string; source_ids?: number[]; assets?: { name: string; ticker?: string; keywords: string }[] }) =>
+      request<Signal>("/signals", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: { name?: string; is_active?: boolean; source_ids?: number[] }) =>
+      request<Signal>(`/signals/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    delete: (id: number) => request<void>(`/signals/${id}`, { method: "DELETE" }),
+    addAsset: (signalId: number, body: { name: string; ticker?: string; keywords: string }) =>
+      request<SignalAsset>(`/signals/${signalId}/assets`, { method: "POST", body: JSON.stringify(body) }),
+    deleteAsset: (signalId: number, assetId: number) =>
+      request<void>(`/signals/${signalId}/assets/${assetId}`, { method: "DELETE" }),
+    alerts: (signalId: number, params?: { limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams();
+      if (params?.limit) sp.set("limit", String(params.limit));
+      if (params?.offset) sp.set("offset", String(params.offset));
+      return request<SignalAlert[]>(`/signals/${signalId}/alerts?${sp}`);
+    },
+    markAllRead: (signalId: number) =>
+      request<void>(`/signals/${signalId}/alerts/read-all`, { method: "POST" }),
+    unreadCount: () => request<{ count: number }>("/signals/alerts/unread-count"),
+  },
   telegram: {
     status: () =>
       request<{ authorized: boolean; has_credentials: boolean; error?: string }>("/telegram/status"),
@@ -209,4 +231,47 @@ export interface Settings {
   ai_summary_enabled: boolean;
   digest_enabled: boolean;
   sync_interval_minutes: number;
+}
+
+export interface SignalAsset {
+  id: number;
+  name: string;
+  ticker: string | null;
+  keywords: string;
+}
+
+export interface SignalSourceRef {
+  id: number;
+  title: string;
+  category: string | null;
+}
+
+export interface Signal {
+  id: number;
+  name: string;
+  type: string;
+  is_active: boolean;
+  created_at: string;
+  sources: SignalSourceRef[];
+  assets: SignalAsset[];
+  unread_count: number;
+}
+
+export interface SignalAlertPost {
+  id: number;
+  title: string | null;
+  preview_text: string | null;
+  original_url: string | null;
+  published_at: string;
+  source_title: string | null;
+}
+
+export interface SignalAlert {
+  id: number;
+  signal_id: number;
+  matched_keyword: string;
+  is_read: boolean;
+  created_at: string;
+  asset: SignalAsset;
+  post: SignalAlertPost;
 }

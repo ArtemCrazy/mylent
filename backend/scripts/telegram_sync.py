@@ -27,6 +27,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
+from app.services.signal_matcher import check_post_signals
 from scripts.media_utils import download_message_media, message_to_html
 
 
@@ -124,6 +125,8 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
                 media_json=media_json,
             )
             db.add(post)
+            await db.flush()  # get post.id for signal matching
+            await check_post_signals(db, post.id, source.id, text)
             existing_ids.add(eid)
             added += 1
 

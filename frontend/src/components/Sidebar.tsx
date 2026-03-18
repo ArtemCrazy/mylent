@@ -42,6 +42,15 @@ const mainNav = [
     ),
   },
   {
+    href: "/signals",
+    label: "Сигналы",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+        <path fillRule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.91 32.91 0 003.256.508 3.5 3.5 0 006.972 0 32.903 32.903 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm0 14.5a2 2 0 01-1.95-1.557 33.146 33.146 0 003.9 0A2 2 0 0110 16.5z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     href: "/sources",
     label: "Источники",
     icon: (
