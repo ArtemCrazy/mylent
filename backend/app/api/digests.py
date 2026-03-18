@@ -40,11 +40,18 @@ def _config_to_response(cfg: DigestConfig, last_digest: Digest | None = None, di
     )
 
 
-def _digest_to_response(d: Digest) -> DigestResponse:
+def _digest_to_response(d: Digest, config_name: str | None = None) -> DigestResponse:
+    # Use explicitly passed config_name, or try relationship (only if eagerly loaded)
+    cname = config_name
+    if cname is None:
+        try:
+            cname = d.config.name if d.config else None
+        except Exception:
+            cname = None
     return DigestResponse(
         id=d.id,
         config_id=d.config_id,
-        config_name=d.config.name if d.config else None,
+        config_name=cname,
         type=d.type,
         title=d.title,
         period_start=d.period_start,
@@ -198,7 +205,7 @@ async def generate_from_config(config_id: int, user: CurrentUser, db: DbSession)
         raise HTTPException(status_code=404, detail="Config not found")
     try:
         digest = await do_generate(db=db, config=cfg)
-        return _digest_to_response(digest)
+        return _digest_to_response(digest, config_name=cfg.name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -226,7 +233,7 @@ async def config_history(
         .limit(limit)
     )
     digests = list(result.scalars().all())
-    return [_digest_to_response(d) for d in digests]
+    return [_digest_to_response(d, config_name=cfg.name) for d in digests]
 
 
 # ── Legacy digest endpoints ──
@@ -240,7 +247,7 @@ async def list_digests(
     limit: int = Query(20, le=50),
     offset: int = 0,
 ):
-    q = select(Digest).order_by(Digest.created_at.desc()).offset(offset).limit(limit)
+    q = select(Digest).options(selectinload(Digest.config)).order_by(Digest.created_at.desc()).offset(offset).limit(limit)
     if type:
         q = q.where(Digest.type == type)
     if config_id:
