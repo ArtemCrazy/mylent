@@ -57,7 +57,6 @@ export default function FeedPage() {
           // Merge new posts at the top, keep already loaded older posts
           setPosts((prev) => {
             const existingIds = new Set(prev.map((p) => p.id));
-            const newOnes = fetched.filter((p) => !existingIds.has(p));
             // Update existing posts (e.g. favorite state) and prepend truly new ones
             const updated = prev.map((p) => {
               const fresh = fetched.find((f) => f.id === p.id);
