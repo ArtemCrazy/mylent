@@ -36,7 +36,7 @@ export default function SignalsPage() {
         .map((line) => {
           const parts = line.split("|").map((s) => s.trim());
           const assetName = parts[0] || line;
-          const ticker = parts[1] || null;
+          const ticker = parts[1] || undefined;
           const keywords = parts[2] || assetName.toLowerCase();
           return { name: assetName, ticker, keywords };
         });
