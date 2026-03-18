@@ -55,24 +55,25 @@ jobs:
 
             rm -f /etc/nginx/sites-enabled/default
 
-            if [ ! -f /etc/letsencrypt/live/mylent.ru/fullchain.pem ]; then
-              echo "=== Getting SSL certificate ==="
-              cp /root/mylent/docker/nginx-http.conf /etc/nginx/sites-available/mylent.conf
-              ln -sf /etc/nginx/sites-available/mylent.conf /etc/nginx/sites-enabled/mylent.conf
-              nginx -t && systemctl reload nginx
-              certbot certonly --webroot --webroot-path=/var/www/html --email artem@mylent.ru --agree-tos --no-eff-email -d mylent.ru -d www.mylent.ru && echo "SSL cert obtained!" || echo "WARNING: SSL cert failed"
-            fi
-
-            if [ -f /etc/letsencrypt/live/mylent.ru/fullchain.pem ]; then
-              echo "Using SSL config"
-              cp /root/mylent/docker/nginx-ssl.conf /etc/nginx/sites-available/mylent.conf
-            else
-              echo "No SSL cert, using HTTP config"
-              cp /root/mylent/docker/nginx-http.conf /etc/nginx/sites-available/mylent.conf
-            fi
+            # Always start with HTTP config (guaranteed to work)
+            cp /root/mylent/docker/nginx-http.conf /etc/nginx/sites-available/mylent.conf
             ln -sf /etc/nginx/sites-available/mylent.conf /etc/nginx/sites-enabled/mylent.conf
             nginx -t && systemctl reload nginx
-            echo "Nginx configured"
+            echo "HTTP nginx configured"
+
+            # Try to get SSL cert if missing
+            mkdir -p /var/www/html
+            if [ ! -f /etc/letsencrypt/live/mylent.ru/fullchain.pem ]; then
+              echo "=== Getting SSL certificate ==="
+              certbot certonly --webroot --webroot-path=/var/www/html --email artem@mylent.ru --agree-tos --no-eff-email -d mylent.ru -d www.mylent.ru && echo "SSL cert obtained!" || echo "WARNING: SSL cert failed, staying on HTTP"
+            fi
+
+            # If valid cert exists, upgrade to SSL config (HTTP still works, no redirect)
+            if [ -f /etc/letsencrypt/live/mylent.ru/fullchain.pem ]; then
+              echo "Enabling HTTPS (no redirect from HTTP)"
+              cp /root/mylent/docker/nginx-ssl.conf /etc/nginx/sites-available/mylent.conf
+              nginx -t && systemctl reload nginx && echo "HTTPS enabled" || echo "SSL config failed, keeping HTTP"
+            fi
 
             if [ -n "${{ secrets.TELEGRAM_SESSION }}" ]; then
               printf '%s' "${{ secrets.TELEGRAM_SESSION }}" | base64 -d > /tmp/tg.session
