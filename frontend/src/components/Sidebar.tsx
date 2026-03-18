@@ -80,10 +80,11 @@ const profileNav = {
   ),
 };
 
-function NavLink({ href, label, icon, pathname }: { href: string; label: string; icon: React.ReactNode; pathname: string }) {
+function NavLink({ href, label, icon, pathname, onClick }: { href: string; label: string; icon: React.ReactNode; pathname: string; onClick?: () => void }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
         pathname === href
           ? "bg-[var(--accent-soft)] text-[var(--accent)]"
@@ -99,14 +100,21 @@ function NavLink({ href, label, icon, pathname }: { href: string; label: string;
 export function Sidebar() {
   const pathname = usePathname();
   const [hasToken, setHasToken] = useState(false);
+  const [open, setOpen] = useState(false);
+
   useEffect(() => {
     setHasToken(!!(typeof window !== "undefined" && localStorage.getItem("token")));
   }, [pathname]);
 
-  return (
-    <aside className="w-56 shrink-0 border-r border-[var(--border)] bg-[var(--card)] flex flex-col min-h-0">
+  // Close on route change
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const sidebarContent = (
+    <>
       <div className="p-4 border-b border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
-        <Link href="/" className="font-semibold text-lg tracking-tight">
+        <Link href="/" className="font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
           MyLent
         </Link>
         {pathname !== "/login" && (
@@ -127,6 +135,7 @@ export function Sidebar() {
             <Link
               href="/login"
               className="text-sm text-[var(--accent)] hover:underline shrink-0"
+              onClick={() => setOpen(false)}
             >
               Войти
             </Link>
@@ -137,14 +146,61 @@ export function Sidebar() {
         <ul className="space-y-0.5">
           {mainNav.map(({ href, label, icon }) => (
             <li key={href}>
-              <NavLink href={href} label={label} icon={icon} pathname={pathname} />
+              <NavLink href={href} label={label} icon={icon} pathname={pathname} onClick={() => setOpen(false)} />
             </li>
           ))}
         </ul>
       </nav>
       <div className="p-2 border-t border-[var(--border)] shrink-0">
-        <NavLink href={profileNav.href} label={profileNav.label} icon={profileNav.icon} pathname={pathname} />
+        <NavLink href={profileNav.href} label={profileNav.label} icon={profileNav.icon} pathname={pathname} onClick={() => setOpen(false)} />
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-[var(--card)] border-b border-[var(--border)] flex items-center px-3 gap-3">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="p-1.5 rounded-md hover:bg-[var(--card-hover)] transition-colors"
+          aria-label="Меню"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+            {open ? (
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            ) : (
+              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 5A.75.75 0 012.75 9h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 9.75zm0 5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+            )}
+          </svg>
+        </button>
+        <Link href="/" className="font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
+          MyLent
+        </Link>
+      </div>
+
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`md:hidden fixed top-12 left-0 bottom-0 z-50 w-64 bg-[var(--card)] border-r border-[var(--border)] flex flex-col transition-transform duration-200 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-56 shrink-0 border-r border-[var(--border)] bg-[var(--card)] flex-col min-h-0">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
