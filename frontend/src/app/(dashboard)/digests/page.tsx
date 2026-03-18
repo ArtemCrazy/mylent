@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, type DigestConfig, type Source } from "@/lib/api";
+import { SourcePicker } from "@/components/SourcePicker";
 
 const DEFAULT_PROMPT = `Ты — AI-редактор новостной ленты. Тебе дан список постов из Telegram-каналов за определённый период.
 
@@ -79,12 +80,6 @@ export default function DigestsPage() {
       alert(err instanceof Error ? err.message : "Ошибка генерации");
     }
     setGeneratingId(null);
-  }
-
-  function toggleSource(id: number) {
-    setSelectedSources((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
   }
 
   if (loading) {
@@ -183,22 +178,7 @@ export default function DigestsPage() {
                 Источники {selectedSources.length > 0 && `(${selectedSources.length})`}
                 <span className="text-xs ml-1">(пусто = все каналы)</span>
               </label>
-              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                {sources.map((src) => (
-                  <button
-                    key={src.id}
-                    type="button"
-                    onClick={() => toggleSource(src.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                      selectedSources.includes(src.id)
-                        ? "bg-[var(--accent)] text-white"
-                        : "bg-[var(--background)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    {src.title}
-                  </button>
-                ))}
-              </div>
+              <SourcePicker sources={sources} selected={selectedSources} onChange={setSelectedSources} />
             </div>
 
             {error && (

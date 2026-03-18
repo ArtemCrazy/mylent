@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type DigestConfig, type Digest, type Source } from "@/lib/api";
+import { SourcePicker } from "@/components/SourcePicker";
 
 const SCHEDULE_LABELS: Record<string, string> = {
   manual: "Вручную",
@@ -104,12 +105,6 @@ export default function DigestConfigDetailPage() {
     } catch (e) {
       alert(e instanceof Error ? e.message : "Ошибка удаления");
     }
-  }
-
-  function toggleSource(id: number) {
-    setEditSources((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
   }
 
   if (error || (!loading && !config)) {
@@ -272,22 +267,7 @@ export default function DigestConfigDetailPage() {
               Источники {editSources.length > 0 && `(${editSources.length})`}
               <span className="text-xs ml-1">(пусто = все каналы)</span>
             </label>
-            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-              {sources.map((src) => (
-                <button
-                  key={src.id}
-                  type="button"
-                  onClick={() => toggleSource(src.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                    editSources.includes(src.id)
-                      ? "bg-[var(--accent)] text-white"
-                      : "bg-[var(--background)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {src.title}
-                </button>
-              ))}
-            </div>
+            <SourcePicker sources={sources} selected={editSources} onChange={setEditSources} />
           </div>
 
           <div className="flex gap-2">
