@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 const FETCH_TIMEOUT_MS = 15_000;
 const FETCH_TIMEOUT_LONG_MS = 60_000;
 

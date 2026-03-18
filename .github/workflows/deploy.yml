@@ -24,8 +24,9 @@ jobs:
             git pull origin main
 
             DOMAIN="mylent.ru"
-            grep -q "^NEXT_PUBLIC_API_URL=" .env && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=https://${DOMAIN}|" .env || echo "NEXT_PUBLIC_API_URL=https://${DOMAIN}" >> .env
-            echo "NEXT_PUBLIC_API_URL set to https://${DOMAIN}"
+            # Empty API URL = relative calls via nginx (works with both HTTP and HTTPS)
+            grep -q "^NEXT_PUBLIC_API_URL=" .env && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=|" .env || echo "NEXT_PUBLIC_API_URL=" >> .env
+            echo "NEXT_PUBLIC_API_URL set to empty (relative)"
             grep -q "^CORS_ORIGINS=" .env && sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN},http://${DOMAIN}|" .env || echo "CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN},http://${DOMAIN}" >> .env
 
             if [ -n "${{ secrets.TELEGRAM_API_ID }}" ]; then
