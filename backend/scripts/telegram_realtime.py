@@ -151,22 +151,25 @@ async def main() -> None:
     os.makedirs(os.path.dirname(session_path) or ".", exist_ok=True)
 
     client = TelegramClient(session_path, api_id_int, api_hash)
+    await client.connect()
 
-    async with client:
-        if not await client.is_user_authorized():
-            print("Сначала один раз войдите через: python -m scripts.telegram_sync")
-            sys.exit(1)
+    if not await client.is_user_authorized():
+        print("Сначала один раз войдите через: python -m scripts.telegram_sync")
+        await client.disconnect()
+        sys.exit(1)
+
+    try:
         print("Загрузка каналов…")
         await load_sources(client)
         while not _channel_to_source:
             print("Нет активных Telegram-источников. Повтор через 30 с…")
             await asyncio.sleep(30)
             await load_sources(client)
+
         async def _reload_sources_loop() -> None:
             while True:
                 await asyncio.sleep(_RELOAD_INTERVAL_SEC)
                 await load_sources(client)
-                # обновляем список чатов у обработчика (re-register с новым списком)
                 client.remove_event_handler(on_new_message)
                 client.add_event_handler(
                     on_new_message,
@@ -182,6 +185,8 @@ async def main() -> None:
         )
         asyncio.create_task(_reload_sources_loop())
         await client.run_until_disconnected()
+    finally:
+        await client.disconnect()
 
 
 if __name__ == "__main__":

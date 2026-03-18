@@ -161,11 +161,19 @@ async def main() -> None:
 
     print("Подключение к Telegram…")
     client = TelegramClient(session_path, api_id_int, api_hash)
+    await client.connect()
 
-    async with client:
-        if not await client.is_user_authorized():
+    if not await client.is_user_authorized():
+        # Интерактивный режим (первый запуск вручную) — только если есть stdin
+        if sys.stdin.isatty():
             print("Первый запуск: войдите в аккаунт Telegram (код придёт в приложение Telegram).")
             await client.start()
+        else:
+            print("Сессия не авторизована. Войдите вручную: docker exec -it mylent-backend-1 python -m scripts.telegram_sync")
+            await client.disconnect()
+            sys.exit(1)
+
+    try:
         print("Синхронизация каналов…")
         async with AsyncSessionLocal() as db:
             try:
@@ -177,6 +185,8 @@ async def main() -> None:
                 import traceback
                 print(f"Ошибка синхронизации: {e}")
                 traceback.print_exc()
+    finally:
+        await client.disconnect()
 
 
 if __name__ == "__main__":
