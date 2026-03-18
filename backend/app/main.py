@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 import json
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -95,6 +97,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(api_router)
+
+# Serve downloaded Telegram media files
+_media_dir = os.path.join(os.environ.get("TELEGRAM_SESSION_PATH", "./data").rsplit("/", 1)[0] if "/" in os.environ.get("TELEGRAM_SESSION_PATH", "./data") else "./data", "media")
+os.makedirs(_media_dir, exist_ok=True)
+app.mount("/media", StaticFiles(directory=_media_dir), name="media")
 
 
 @app.get("/")

@@ -24,6 +24,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
+from scripts.media_utils import download_message_media
 
 
 def get_channel_username(source: Source) -> str | None:
@@ -76,6 +77,9 @@ async def load_sources(client: TelegramClient) -> None:
             print(f"  Пропуск {source.title}: {e}")
 
 
+_client: TelegramClient | None = None
+
+
 async def on_new_message(event: events.NewMessage.Event) -> None:
     """Новое сообщение в одном из наших каналов — пишем в БД."""
     if not isinstance(event.message, Message):
@@ -96,16 +100,8 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
         published_at = published_at.replace(tzinfo=timezone.utc)
 
     media_json = None
-    if getattr(event.message, "media", None):
-        has_photo = event.message.photo is not None
-        has_video = getattr(event.message, "video", None) is not None or (
-            getattr(event.message, "document", None) and getattr(event.message.document, "mime_type", None) or ""
-        ).startswith("video/")
-        if has_photo or has_video:
-            media_json = json.dumps({
-                "photos": [{}] if has_photo else [],
-                "videos": [{}] if has_video else [],
-            })
+    if _client:
+        media_json = await download_message_media(_client, event.message, source.id)
 
     async with AsyncSessionLocal() as db:
         from sqlalchemy import select
@@ -157,6 +153,9 @@ async def main() -> None:
         print("Сначала один раз войдите через: python -m scripts.telegram_sync")
         await client.disconnect()
         sys.exit(1)
+
+    global _client
+    _client = client
 
     try:
         print("Загрузка каналов…")

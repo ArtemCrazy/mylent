@@ -2,6 +2,12 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const FETCH_TIMEOUT_MS = 15_000;
 const FETCH_TIMEOUT_LONG_MS = 60_000;
 
+/** Convert backend-relative media path (e.g. /media/1/123.jpg) to full URL */
+export function getMediaUrl(path: string): string {
+  if (path.startsWith("http")) return path;
+  return `${API_BASE}${path}`;
+}
+
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");

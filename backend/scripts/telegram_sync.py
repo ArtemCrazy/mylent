@@ -27,6 +27,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
+from scripts.media_utils import download_message_media
 
 
 def get_channel_username(source: Source) -> str | None:
@@ -106,17 +107,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
             if published_at and published_at.tzinfo is None:
                 published_at = published_at.replace(tzinfo=timezone.utc)
 
-            media_json = None
-            if getattr(msg, "media", None):
-                has_photo = msg.photo is not None
-                has_video = getattr(msg, "video", None) is not None or (
-                    getattr(msg, "document", None) and getattr(msg.document, "mime_type", None) or ""
-                ).startswith("video/")
-                if has_photo or has_video:
-                    media_json = json.dumps({
-                        "photos": [{}] if has_photo else [],
-                        "videos": [{}] if has_video else [],
-                    })
+            media_json = await download_message_media(client, msg, source.id)
 
             post = Post(
                 source_id=source.id,

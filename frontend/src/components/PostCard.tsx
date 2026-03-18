@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { api, type Post } from "@/lib/api";
+import { api, type Post, getMediaUrl } from "@/lib/api";
 
 const COLLAPSE_THRESHOLD = 2000;
 
@@ -136,38 +135,27 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
 
       {/* Media */}
       {media.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-1">
           {media.map((m, i) => (
             <div key={i} className="rounded-lg overflow-hidden bg-[var(--background)]">
               {m.type === "photo" && m.url && (
-                <a href={m.url} target="_blank" rel="noopener noreferrer">
-                  <img src={m.url} alt="" className="max-w-full max-h-64 object-contain" />
+                <a href={getMediaUrl(m.url)} target="_blank" rel="noopener noreferrer">
+                  <img src={getMediaUrl(m.url)} alt="" className="max-w-full max-h-80 rounded-lg object-contain" loading="lazy" />
                 </a>
               )}
               {m.type === "video" && m.url && (
-                <video src={m.url} controls className="max-w-full max-h-64" />
-              )}
-              {m.type === "photo" && !m.url && (
-                <a href={post.original_url || "#"} target="_blank" rel="noopener noreferrer" className="w-32 h-32 flex items-center justify-center text-[var(--muted)] text-xs border border-[var(--border)] rounded hover:bg-[var(--card-hover)]">
-                  Фото →
-                </a>
+                <video src={getMediaUrl(m.url)} controls className="max-w-full max-h-80 rounded-lg" />
               )}
               {m.type === "video" && !m.url && (
-                <a href={post.original_url || "#"} target="_blank" rel="noopener noreferrer" className="w-32 h-32 flex items-center justify-center text-[var(--muted)] text-xs border border-[var(--border)] rounded hover:bg-[var(--card-hover)]">
-                  Видео →
+                <a href={post.original_url || "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--muted)] border border-[var(--border)] rounded-lg hover:bg-[var(--card-hover)]">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  Видео в источнике
                 </a>
               )}
             </div>
           ))}
         </div>
       )}
-
-      {/* Footer */}
-      <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs">
-        <Link href={`/post/${post.id}`} className="text-[var(--accent)] hover:underline">
-          Страница поста
-        </Link>
-      </div>
 
       {/* Hover actions — right side */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
