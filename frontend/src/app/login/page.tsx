@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
@@ -75,14 +74,6 @@ export default function LoginPage() {
             {loading ? "Вход…" : "Войти"}
           </button>
         </form>
-        <p className="mt-4 text-xs text-[var(--muted)]">
-          Логин и пароль задаются при настройке сервера: в файле .env (ADMIN_LOGIN, ADMIN_PASSWORD) или на VPS командой{" "}
-          <code className="bg-[var(--background)] px-1 rounded text-[10px]">docker compose -p mylent exec backend python -m scripts.create_user</code>.
-          Если забыли пароль — выполните эту команду заново и задайте новые данные.
-        </p>
-        <p className="mt-2 text-xs">
-          <Link href="/" className="text-[var(--accent)] hover:underline">На главную</Link>
-        </p>
       </div>
     </div>
   );

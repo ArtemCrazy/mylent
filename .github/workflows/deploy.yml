@@ -17,20 +17,23 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
+          command_timeout: 10m
           script: |
             set -e
             cd /root/mylent
             git pull origin main
-            # Set NEXT_PUBLIC_API_URL so frontend talks to the real VPS backend (not localhost)
-            VPS_IP=$(curl -sf https://api.ipify.org || hostname -I | awk '{print $1}')
+
+            # --- URLs: use domain with HTTPS ---
+            DOMAIN="mylent.ru"
             grep -q "^NEXT_PUBLIC_API_URL=" .env \
-              && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001|" .env \
-              || echo "NEXT_PUBLIC_API_URL=http://${VPS_IP}:8001" >> .env
-            echo "NEXT_PUBLIC_API_URL set to http://${VPS_IP}:8001"
-            # Set CORS_ORIGINS so backend allows requests from the frontend origin
+              && sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=https://${DOMAIN}|" .env \
+              || echo "NEXT_PUBLIC_API_URL=https://${DOMAIN}" >> .env
+            echo "NEXT_PUBLIC_API_URL set to https://${DOMAIN}"
+
             grep -q "^CORS_ORIGINS=" .env \
-              && sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=http://${VPS_IP}:3001|" .env \
-              || echo "CORS_ORIGINS=http://${VPS_IP}:3001" >> .env
+              && sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN},http://${DOMAIN}|" .env \
+              || echo "CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN},http://${DOMAIN}" >> .env
+
             # Inject Telegram credentials from GitHub Secrets into .env
             if [ -n "${{ secrets.TELEGRAM_API_ID }}" ]; then
               grep -q "^TELEGRAM_API_ID=" .env \
@@ -42,10 +45,35 @@ jobs:
                 && sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env \
                 || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" >> .env
             fi
+
             cd docker
             docker compose -p mylent build --quiet
             docker compose -p mylent up -d
             sleep 10
+
+            # --- SSL: obtain cert if not exists ---
+            if [ ! -f "/var/lib/docker/volumes/mylent_certbot_data/_data/live/mylent.ru/fullchain.pem" ]; then
+              echo "=== Obtaining SSL certificate ==="
+              docker compose -p mylent run --rm certbot certonly \
+                --webroot --webroot-path=/var/www/certbot \
+                --email artem@mylent.ru --agree-tos --no-eff-email \
+                -d mylent.ru -d www.mylent.ru \
+                && echo "SSL cert obtained!" \
+                || echo "WARNING: SSL cert failed (will retry next deploy)"
+
+              # Switch to SSL nginx config
+              if [ -f "/var/lib/docker/volumes/mylent_certbot_data/_data/live/mylent.ru/fullchain.pem" ]; then
+                cp /root/mylent/docker/nginx-ssl.conf /root/mylent/docker/nginx.conf
+                docker compose -p mylent restart nginx
+                echo "Nginx switched to HTTPS"
+              fi
+            else
+              echo "SSL cert already exists"
+              # Make sure we're using the SSL config
+              cp /root/mylent/docker/nginx-ssl.conf /root/mylent/docker/nginx.conf
+              docker compose -p mylent restart nginx
+            fi
+
             # Restore Telegram session file from GitHub Secret (base64 encoded)
             if [ -n "${{ secrets.TELEGRAM_SESSION }}" ]; then
               printf '%s' "${{ secrets.TELEGRAM_SESSION }}" | base64 -d > /tmp/tg.session
@@ -73,6 +101,7 @@ jobs:
             else
               echo "TELEGRAM_SESSION secret is empty — skipping session restore"
             fi
+
             echo "=== Container status ==="
             docker ps -a --filter "name=mylent"
             echo "=== Backend logs (last 30 lines) ==="
@@ -81,6 +110,8 @@ jobs:
             docker logs mylent-sync-1 --tail 30 2>&1 || true
             echo "=== Realtime logs (last 30 lines) ==="
             docker logs mylent-realtime-1 --tail 30 2>&1 || true
+            echo "=== Nginx logs (last 10 lines) ==="
+            docker logs mylent-nginx-1 --tail 10 2>&1 || true
             echo "=== Reset password ==="
             docker exec mylent-backend-1 python -m scripts.reset_password && echo "Password reset OK" || echo "Password reset FAILED"
-            echo "Deploy finished. MyLent only: /root/mylent, ports 3001 8001 5433."
+            echo "Deploy finished. MyLent: https://mylent.ru"
