@@ -1,18 +1,21 @@
 """
-Scheduled digest generation — runs in a loop checking if it's time to generate.
-Configurable via DIGEST_SCHEDULE_HOURS env var (comma-separated UTC hours).
+Scheduled digest generation — iterates over active DigestConfig records
+and generates digests based on their schedule settings.
 """
 import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-# Ensure app modules are importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
+from app.models.digest import DigestConfig, DigestConfigSource
 from app.services.digest_generator import generate_digest
 
 logging.basicConfig(
@@ -30,48 +33,72 @@ async def run_digest_loop():
         logger.error("DEEPSEEK_API_KEY не задан. Дайджест-сервис остановлен.")
         return
 
-    schedule_hours = [int(h.strip()) for h in settings.digest_schedule_hours.split(",") if h.strip()]
-    if not schedule_hours:
-        schedule_hours = [8, 14, 20]
+    logger.info("Digest cron started. Checking active configs every 5 minutes.")
 
-    logger.info(f"Digest cron started. Schedule hours (UTC): {schedule_hours}")
-
-    generated_today: set[int] = set()
+    # Track what we've generated today: {config_id: set(hours)}
+    generated_today: dict[int, set[int]] = {}
     last_date: str = ""
 
     while True:
         now = datetime.now(timezone.utc)
         today = now.strftime("%Y-%m-%d")
 
-        # Reset generated set on new day
+        # Reset on new day
         if today != last_date:
             generated_today.clear()
             last_date = today
 
         current_hour = now.hour
+        current_weekday = now.weekday()  # 0 = Monday
 
-        if current_hour in schedule_hours and current_hour not in generated_today:
-            logger.info(f"Generating digest for hour {current_hour}:00 UTC")
-            try:
-                async with AsyncSessionLocal() as db:
+        try:
+            async with AsyncSessionLocal() as db:
+                # Fetch active scheduled configs
+                result = await db.execute(
+                    select(DigestConfig)
+                    .where(
+                        DigestConfig.is_active == True,
+                        DigestConfig.schedule_type != "manual",
+                    )
+                    .options(
+                        selectinload(DigestConfig.sources).selectinload(DigestConfigSource.source)
+                    )
+                )
+                configs = list(result.scalars().all())
+
+                for cfg in configs:
+                    # Parse schedule hours
+                    if not cfg.schedule_hours:
+                        continue
+                    schedule_hours = [int(h.strip()) for h in cfg.schedule_hours.split(",") if h.strip()]
+                    if current_hour not in schedule_hours:
+                        continue
+
+                    # Check if already generated this hour
+                    if cfg.id not in generated_today:
+                        generated_today[cfg.id] = set()
+                    if current_hour in generated_today[cfg.id]:
+                        continue
+
+                    # Weekly: only on Monday
+                    if cfg.schedule_type == "weekly" and current_weekday != 0:
+                        continue
+
+                    logger.info(f"Generating digest for config '{cfg.name}' (id={cfg.id}, hour={current_hour})")
                     try:
-                        # Period = last 8 hours
-                        period_end = now
-                        period_start = now - timedelta(hours=8)
-                        digest = await generate_digest(
-                            db=db,
-                            period_start=period_start,
-                            period_end=period_end,
-                            digest_type="daily",
-                        )
+                        digest = await generate_digest(db=db, config=cfg)
                         await db.commit()
-                        logger.info(f"Digest #{digest.id} generated successfully")
-                        generated_today.add(current_hour)
-                    except Exception:
+                        generated_today[cfg.id].add(current_hour)
+                        logger.info(f"Digest #{digest.id} for '{cfg.name}' generated successfully")
+                    except Exception as e:
                         await db.rollback()
-                        raise
-            except Exception as e:
-                logger.exception(f"Failed to generate digest: {e}")
+                        logger.exception(f"Failed to generate digest for config '{cfg.name}': {e}")
+
+                if not configs:
+                    logger.debug("No active scheduled configs found")
+
+        except Exception as e:
+            logger.exception(f"Digest cron cycle error: {e}")
 
         # Check every 5 minutes
         await asyncio.sleep(300)

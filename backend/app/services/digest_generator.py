@@ -12,13 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.core.config import get_settings
-from app.models.digest import Digest
+from app.models.digest import Digest, DigestConfig
 from app.models.post import Post
 from app.models.source import Source
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """Ты — AI-редактор новостной ленты. Тебе дан список постов из Telegram-каналов за определённый период.
+DEFAULT_PROMPT = """Ты — AI-редактор новостной ленты. Тебе дан список постов из Telegram-каналов за определённый период.
 
 Твоя задача — составить краткий дайджест на русском языке:
 1. Начни с общего резюме (2-3 предложения): что было главным за период.
@@ -37,6 +37,7 @@ async def generate_digest(
     period_start: datetime | None = None,
     period_end: datetime | None = None,
     digest_type: str = "daily",
+    config: DigestConfig | None = None,
 ) -> Digest:
     settings = get_settings()
 
@@ -44,12 +45,24 @@ async def generate_digest(
         raise ValueError("DEEPSEEK_API_KEY не настроен. Добавьте ключ в .env")
 
     now = datetime.now(timezone.utc)
-    if period_end is None:
-        period_end = now
-    if period_start is None:
-        period_start = period_end - timedelta(hours=8)
 
-    # Fetch posts for the period with their sources
+    # Use config settings if provided
+    if config:
+        period_hours = config.period_hours or 24
+        if period_end is None:
+            period_end = now
+        if period_start is None:
+            period_start = period_end - timedelta(hours=period_hours)
+        system_prompt = config.prompt or DEFAULT_PROMPT
+        digest_type = config.name
+    else:
+        if period_end is None:
+            period_end = now
+        if period_start is None:
+            period_start = period_end - timedelta(hours=8)
+        system_prompt = DEFAULT_PROMPT
+
+    # Build post query
     stmt = (
         select(Post)
         .options(joinedload(Post.source))
@@ -58,16 +71,25 @@ async def generate_digest(
             Post.published_at <= period_end,
             Post.is_hidden == False,
         )
-        .order_by(Post.published_at.desc())
-        .limit(200)
     )
+
+    # Filter by config sources if specified
+    if config and config.sources:
+        source_ids = [cs.source_id for cs in config.sources]
+        stmt = stmt.where(Post.source_id.in_(source_ids))
+
+    stmt = stmt.order_by(Post.published_at.desc()).limit(200)
+
     result = await db.execute(stmt)
     posts = list(result.scalars().unique().all())
 
     if not posts:
+        title = f"{config.name}: " if config else ""
+        title += _make_title(period_start, period_end)
         digest = Digest(
+            config_id=config.id if config else None,
             type=digest_type,
-            title=_make_title(period_start, period_end),
+            title=title,
             period_start=period_start,
             period_end=period_end,
             summary="За выбранный период новых постов не найдено.",
@@ -90,12 +112,13 @@ async def generate_digest(
         base_url=settings.deepseek_base_url,
     )
 
-    logger.info(f"Generating digest: {len(posts)} posts, period {period_label}")
+    logger.info(f"Generating digest: {len(posts)} posts, period {period_label}" +
+                (f", config '{config.name}'" if config else ""))
 
     response = await client.chat.completions.create(
         model=settings.deepseek_model,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
         max_tokens=4000,
@@ -106,7 +129,7 @@ async def generate_digest(
 
     # Build items_json with post references
     items = []
-    for p in posts[:50]:  # top 50 for the items list
+    for p in posts[:50]:
         items.append({
             "post_id": p.id,
             "title": p.title or (p.preview_text[:80] if p.preview_text else p.raw_text[:80]),
@@ -114,9 +137,13 @@ async def generate_digest(
             "published_at": p.published_at.isoformat() if p.published_at else None,
         })
 
+    title = f"{config.name}: " if config else ""
+    title += _make_title(period_start, period_end)
+
     digest = Digest(
+        config_id=config.id if config else None,
         type=digest_type,
-        title=_make_title(period_start, period_end),
+        title=title,
         period_start=period_start,
         period_end=period_end,
         summary=ai_summary,
@@ -131,7 +158,6 @@ async def generate_digest(
 
 
 def _format_posts_for_prompt(posts: list[Post], max_chars: int = 30000) -> str:
-    """Format posts into a text block for the AI prompt, respecting token limits."""
     lines = []
     total = 0
     for p in posts:
@@ -149,7 +175,6 @@ def _format_posts_for_prompt(posts: list[Post], max_chars: int = 30000) -> str:
 
 
 def _make_title(start: datetime, end: datetime) -> str:
-    """Generate a human-readable digest title."""
     fmt = "%d.%m.%Y %H:%M"
     return f"Дайджест {start.strftime(fmt)} — {end.strftime(fmt)}"
 

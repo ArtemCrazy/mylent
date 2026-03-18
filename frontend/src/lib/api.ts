@@ -115,6 +115,28 @@ export const api = {
     generate: (body: { type: string; period_start?: string; period_end?: string }) =>
       request<Digest>("/digests/generate", { method: "POST", body: JSON.stringify(body) }, FETCH_TIMEOUT_LONG_MS),
   },
+  digestConfigs: {
+    list: () => request<DigestConfig[]>("/digests/configs"),
+    get: (id: number) => request<DigestConfig>(`/digests/configs/${id}`),
+    create: (body: {
+      name: string; prompt: string; schedule_type?: string;
+      schedule_hours?: string; period_hours?: number; source_ids?: number[];
+    }) => request<DigestConfig>("/digests/configs", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: {
+      name?: string; prompt?: string; schedule_type?: string;
+      schedule_hours?: string; period_hours?: number;
+      is_active?: boolean; source_ids?: number[];
+    }) => request<DigestConfig>(`/digests/configs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    delete: (id: number) => request<void>(`/digests/configs/${id}`, { method: "DELETE" }),
+    generate: (id: number) =>
+      request<Digest>(`/digests/configs/${id}/generate`, { method: "POST" }, FETCH_TIMEOUT_LONG_MS),
+    history: (id: number, params?: { limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams();
+      if (params?.limit) sp.set("limit", String(params.limit));
+      if (params?.offset) sp.set("offset", String(params.offset));
+      return request<Digest[]>(`/digests/configs/${id}/history?${sp}`);
+    },
+  },
   settings: {
     get: () => request<Settings>("/settings"),
     update: (body: Partial<Settings>) =>
@@ -217,6 +239,8 @@ export interface Post {
 
 export interface Digest {
   id: number;
+  config_id: number | null;
+  config_name: string | null;
   type: string;
   title: string;
   period_start: string;
@@ -224,6 +248,20 @@ export interface Digest {
   summary: string | null;
   items_json: string;
   created_at: string;
+}
+
+export interface DigestConfig {
+  id: number;
+  name: string;
+  prompt: string;
+  schedule_type: string;
+  schedule_hours: string | null;
+  period_hours: number;
+  is_active: boolean;
+  created_at: string;
+  sources: SignalSourceRef[];
+  last_digest: Digest | null;
+  digest_count: number;
 }
 
 export interface Settings {
