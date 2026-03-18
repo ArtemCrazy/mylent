@@ -122,6 +122,12 @@ def message_to_html(msg: Message) -> str:
     for ent in sorted_ents:
         start = _py(ent.offset)
         end = _py(ent.offset + ent.length)
+        # Skip entities entirely within already-processed text (overlapping entities)
+        if end <= last_end:
+            continue
+        # Trim overlap if entity partially overlaps with already-processed text
+        if start < last_end:
+            start = last_end
         # Add text before this entity
         if start > last_end:
             result.append(html_module.escape(text[last_end:start]))
