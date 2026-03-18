@@ -56,12 +56,15 @@ function parseMedia(mediaJson: string | null): MediaItem[] {
 }
 
 export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post; isNew?: boolean; onToggleFavorite?: (post: Post) => void }) {
-  const text = post.raw_text || post.cleaned_text || "";
-  const isLong = text.length > COLLAPSE_THRESHOLD;
+  const rawText = post.raw_text || "";
+  const htmlText = post.cleaned_text || "";
+  const hasHtml = htmlText.includes("<a ") || htmlText.includes("<b>") || htmlText.includes("<i>");
+  const isLong = rawText.length > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(false);
   const [isFav, setIsFav] = useState(post.is_favorite);
   const [toggling, setToggling] = useState(false);
-  const displayText = isLong && !expanded ? text.slice(0, COLLAPSE_THRESHOLD) + "…" : text;
+  const displayRaw = isLong && !expanded ? rawText.slice(0, COLLAPSE_THRESHOLD) + "…" : rawText;
+  const displayHtml = isLong && !expanded ? htmlText.slice(0, COLLAPSE_THRESHOLD) + "…" : htmlText;
 
   const avatar = post.source ? getSourceAvatar(post.source.config_json) : null;
   const categoryLabel = post.source ? getCategoryLabel(post.source.category) : "";
@@ -80,7 +83,7 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
 
   function handleShare() {
     const url = post.original_url || "";
-    const preview = (post.preview_text || text).slice(0, 200);
+    const preview = (post.preview_text || rawText).slice(0, 200);
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(preview)}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }
@@ -124,9 +127,16 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
         {post.title?.trim() && (
           <h3 className="font-medium text-[var(--foreground)] mb-1">{post.title}</h3>
         )}
-        <p className="text-sm text-[var(--foreground)] whitespace-pre-wrap break-words">
-          {displayText}
-        </p>
+        {hasHtml ? (
+          <div
+            className="text-sm text-[var(--foreground)] whitespace-pre-wrap break-words [&_a]:text-[var(--accent)] [&_a]:underline [&_a]:hover:opacity-80"
+            dangerouslySetInnerHTML={{ __html: displayHtml }}
+          />
+        ) : (
+          <p className="text-sm text-[var(--foreground)] whitespace-pre-wrap break-words">
+            {displayRaw}
+          </p>
+        )}
         {isLong && (
           <button
             type="button"

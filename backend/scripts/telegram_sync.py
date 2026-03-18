@@ -27,7 +27,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
-from scripts.media_utils import download_message_media
+from scripts.media_utils import download_message_media, message_to_html
 
 
 def get_channel_username(source: Source) -> str | None:
@@ -108,13 +108,14 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
                 published_at = published_at.replace(tzinfo=timezone.utc)
 
             media_json = await download_message_media(client, msg, source.id)
+            html_text = message_to_html(msg)
 
             post = Post(
                 source_id=source.id,
                 external_id=eid,
                 title=None,
                 raw_text=text,
-                cleaned_text=text,
+                cleaned_text=html_text,
                 preview_text=make_preview(text),
                 original_url=f"https://t.me/{username}/{msg.id}",
                 published_at=published_at or now,

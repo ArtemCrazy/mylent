@@ -1,11 +1,18 @@
 """Утилиты для скачивания медиа из Telegram и формирования media_json."""
 from __future__ import annotations
 
+import html as html_module
 import json
 import os
 
 from telethon import TelegramClient
-from telethon.tl.types import Message
+from telethon.tl.types import (
+    Message,
+    MessageEntityUrl,
+    MessageEntityTextUrl,
+    MessageEntityBold,
+    MessageEntityItalic,
+)
 
 
 # Базовая директория для медиа — рядом с сессией Telegram
@@ -56,3 +63,48 @@ async def download_message_media(
         videos.append({})
 
     return json.dumps({"photos": photos, "videos": videos})
+
+
+def message_to_html(msg: Message) -> str:
+    """Convert Telegram message text + entities to HTML with links preserved."""
+    text = msg.message or msg.text or ""
+    if not text:
+        return ""
+    entities = msg.entities or []
+    if not entities:
+        return html_module.escape(text)
+
+    # Sort entities by offset
+    sorted_ents = sorted(entities, key=lambda e: e.offset)
+
+    result = []
+    last_end = 0
+
+    for ent in sorted_ents:
+        start = ent.offset
+        end = ent.offset + ent.length
+        # Add text before this entity
+        if start > last_end:
+            result.append(html_module.escape(text[last_end:start]))
+
+        chunk = html_module.escape(text[start:end])
+
+        if isinstance(ent, MessageEntityTextUrl):
+            url = html_module.escape(ent.url, quote=True)
+            result.append(f'<a href="{url}" target="_blank" rel="noopener noreferrer">{chunk}</a>')
+        elif isinstance(ent, MessageEntityUrl):
+            result.append(f'<a href="{text[start:end]}" target="_blank" rel="noopener noreferrer">{chunk}</a>')
+        elif isinstance(ent, MessageEntityBold):
+            result.append(f"<b>{chunk}</b>")
+        elif isinstance(ent, MessageEntityItalic):
+            result.append(f"<i>{chunk}</i>")
+        else:
+            result.append(chunk)
+
+        last_end = end
+
+    # Add remaining text
+    if last_end < len(text):
+        result.append(html_module.escape(text[last_end:]))
+
+    return "".join(result)

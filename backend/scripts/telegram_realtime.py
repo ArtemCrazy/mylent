@@ -24,7 +24,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
-from scripts.media_utils import download_message_media
+from scripts.media_utils import download_message_media, message_to_html
 
 
 def get_channel_username(source: Source) -> str | None:
@@ -102,6 +102,7 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
     media_json = None
     if _client:
         media_json = await download_message_media(_client, event.message, source.id)
+    html_text = message_to_html(event.message)
 
     async with AsyncSessionLocal() as db:
         from sqlalchemy import select
@@ -115,7 +116,7 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
             external_id=eid,
             title=None,
             raw_text=text,
-            cleaned_text=text,
+            cleaned_text=html_text,
             preview_text=make_preview(text),
             original_url=f"https://t.me/{username}/{event.message.id}",
             published_at=published_at or now,
