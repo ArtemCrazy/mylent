@@ -1,10 +1,13 @@
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, status, Query
 from sqlalchemy import select
 from app.schemas.digest import DigestResponse, DigestGenerateRequest
 from app.api.deps import CurrentUser, DbSession
 from app.models.digest import Digest
-import json
+from app.services.digest_generator import generate_digest as do_generate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/digests", tags=["digests"])
 
@@ -34,20 +37,17 @@ async def get_digest(digest_id: int, db: DbSession, current_user: CurrentUser):
 
 
 @router.post("/generate", response_model=DigestResponse, status_code=status.HTTP_201_CREATED)
-async def generate_digest(body: DigestGenerateRequest, db: DbSession, current_user: CurrentUser):
-    # Placeholder: create a minimal digest record. Real implementation will call AI and fetch posts.
-    now = datetime.utcnow()
-    period_end = body.period_end or now
-    period_start = body.period_start or (period_end - timedelta(days=1))
-    digest = Digest(
-        type=body.type,
-        title=f"Digest: {body.type}",
-        period_start=period_start,
-        period_end=period_end,
-        summary=None,
-        items_json=json.dumps([]),
-    )
-    db.add(digest)
-    await db.flush()
-    await db.refresh(digest)
-    return digest
+async def generate_digest_endpoint(body: DigestGenerateRequest, db: DbSession, current_user: CurrentUser):
+    try:
+        digest = await do_generate(
+            db=db,
+            period_start=body.period_start,
+            period_end=body.period_end,
+            digest_type=body.type,
+        )
+        return digest
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Digest generation failed")
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {str(e)}")

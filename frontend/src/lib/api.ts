@@ -113,7 +113,7 @@ export const api = {
       request<Digest[]>(type ? `/digests?type=${type}` : "/digests"),
     get: (id: number) => request<Digest>(`/digests/${id}`),
     generate: (body: { type: string; period_start?: string; period_end?: string }) =>
-      request<Digest>("/digests/generate", { method: "POST", body: JSON.stringify(body) }),
+      request<Digest>("/digests/generate", { method: "POST", body: JSON.stringify(body) }, FETCH_TIMEOUT_LONG_MS),
   },
   settings: {
     get: () => request<Settings>("/settings"),

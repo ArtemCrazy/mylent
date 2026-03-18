@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = ""
 
+    # DeepSeek (for digest generation)
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+    digest_schedule_hours: str = "8,14,20"  # hours (UTC) to auto-generate digests
+
     # Telegram (for ingestion worker)
     telegram_session_path: str = "./data/telegram_session"
     telegram_api_id: str = ""

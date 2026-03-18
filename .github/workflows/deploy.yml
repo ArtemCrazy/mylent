@@ -35,6 +35,9 @@ jobs:
             if [ -n "${{ secrets.TELEGRAM_API_HASH }}" ]; then
               grep -q "^TELEGRAM_API_HASH=" .env && sed -i "s|^TELEGRAM_API_HASH=.*|TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}|" .env || echo "TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}" >> .env
             fi
+            if [ -n "${{ secrets.DEEPSEEK_API_KEY }}" ]; then
+              grep -q "^DEEPSEEK_API_KEY=" .env && sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}|" .env || echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
+            fi
 
             cd docker
             docker compose -p mylent build --quiet
