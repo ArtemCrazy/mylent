@@ -28,9 +28,9 @@ async def download_message_media(
     has_video = (
         getattr(msg, "video", None) is not None
         or (
-            getattr(msg, "document", None)
-            and (getattr(msg.document, "mime_type", None) or "")
-        ).startswith("video/")
+            getattr(msg, "document", None) is not None
+            and (getattr(msg.document, "mime_type", None) or "").startswith("video/")
+        )
     )
 
     if not has_photo and not has_video:
