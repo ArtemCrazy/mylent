@@ -66,22 +66,25 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
     total_added = 0
     now = datetime.now(timezone.utc)
 
-    for source in sources:
+    for i, source in enumerate(sources, 1):
         username = get_channel_username(source)
         if not username:
-            print(f"  Пропуск '{source.title}': не указан username канала")
             continue
 
+        print(f"  [{i}/{len(sources)}] {source.title}…", end=" ", flush=True)
         try:
-            entity = await client.get_entity(username)
+            entity = await asyncio.wait_for(client.get_entity(username), timeout=30)
 
             if not entity_has_public_link(entity):
-                print(f"  Пропуск '{source.title}': нет публичной ссылки (только приглашение), парсить нельзя")
+                print("пропуск (приватный)")
                 continue
 
-            messages = await client.get_messages(entity, limit=50)
+            messages = await asyncio.wait_for(client.get_messages(entity, limit=50), timeout=60)
+        except asyncio.TimeoutError:
+            print("таймаут!")
+            continue
         except Exception as e:
-            print(f"  Ошибка канала '{source.title}' ({username}): {e}")
+            print(f"ошибка: {e}")
             continue
 
         existing = await db.execute(
@@ -105,9 +108,10 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
                 published_at = published_at.replace(tzinfo=timezone.utc)
 
             try:
-                media_json = await download_message_media(client, msg, source.id)
-            except Exception as e:
-                print(f"    Ошибка медиа {msg.id}: {e}")
+                media_json = await asyncio.wait_for(
+                    download_message_media(client, msg, source.id), timeout=60
+                )
+            except (asyncio.TimeoutError, Exception) as e:
                 media_json = None
             html_text = message_to_html(msg)
 
@@ -134,7 +138,9 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
             source.last_synced_at = now
             total_added += added
             await db.commit()
-            print(f"  {source.title}: добавлено {added} постов")
+            print(f"+{added}")
+        else:
+            print("ок")
 
     return total_added
 
