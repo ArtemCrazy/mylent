@@ -67,8 +67,7 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
   const categoryLabel = post.source ? getCategoryLabel(post.source.category) : "";
   const media = parseMedia(post.media_json);
 
-  async function handleFavorite(e: React.MouseEvent) {
-    e.stopPropagation();
+  async function handleFavorite() {
     if (toggling) return;
     setToggling(true);
     try {
@@ -79,8 +78,15 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
     setToggling(false);
   }
 
+  function handleShare() {
+    const url = post.original_url || "";
+    const preview = (post.preview_text || text).slice(0, 200);
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(preview)}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }
+
   return (
-    <article className={`group relative rounded-xl border bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors ${
+    <article className={`rounded-xl border bg-[var(--card)] p-4 hover:bg-[var(--card-hover)] transition-colors ${
       isNew
         ? "border-blue-400/60 shadow-[0_0_18px_3px_rgba(96,165,250,0.25)] animate-glow-pulse"
         : "border-[var(--border)]"
@@ -106,7 +112,6 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
             {formatDate(post.published_at)}
           </time>
         </div>
-        {/* Category — right corner */}
         {categoryLabel && (
           <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[var(--background)] text-[var(--muted)] shrink-0">
             {categoryLabel}
@@ -135,7 +140,7 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
 
       {/* Media */}
       {media.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-1">
+        <div className="flex flex-wrap gap-2 mb-3">
           {media.map((m, i) => (
             <div key={i} className="rounded-lg overflow-hidden bg-[var(--background)]">
               {m.type === "photo" && m.url && (
@@ -157,39 +162,56 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
         </div>
       )}
 
-      {/* Hover actions — right side */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {/* Link to source */}
+      {/* Action buttons — always visible */}
+      <div className="flex items-center gap-1 pt-2 border-t border-[var(--border)]">
+        {/* Source link */}
         {post.original_url && (
           <a
             href={post.original_url}
             target="_blank"
             rel="noopener noreferrer"
             title="Открыть в источнике"
-            className="w-8 h-8 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--background)] transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
               <polyline points="15 3 21 3 21 9" />
               <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
+            Источник
           </a>
         )}
-        {/* Favorite toggle */}
+        {/* Share via Telegram */}
+        {post.original_url && (
+          <button
+            type="button"
+            onClick={handleShare}
+            title="Поделиться в Telegram"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--background)] transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+            Поделиться
+          </button>
+        )}
+        {/* Favorite */}
         <button
           type="button"
           onClick={handleFavorite}
           disabled={toggling}
           title={isFav ? "Убрать из избранного" : "В избранное"}
-          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+          className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
             isFav
-              ? "bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25"
-              : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-amber-500 hover:border-amber-500/40"
+              ? "text-amber-500 hover:bg-amber-500/10"
+              : "text-[var(--muted)] hover:text-amber-500 hover:bg-[var(--background)]"
           }`}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
+          {isFav ? "В избранном" : "Сохранить"}
         </button>
       </div>
     </article>
