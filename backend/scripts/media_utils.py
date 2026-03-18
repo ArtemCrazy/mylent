@@ -21,6 +21,9 @@ _data_dir = os.path.dirname(_data_dir) if "/" in _data_dir else "./data"
 MEDIA_DIR = os.path.join(_data_dir, "media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
 
+# Максимальный размер видео для скачивания (байты). Больше — только ссылка на источник.
+MAX_VIDEO_SIZE = int(os.environ.get("MAX_VIDEO_SIZE_MB", "20")) * 1024 * 1024
+
 
 async def download_message_media(
     client: TelegramClient,
@@ -59,8 +62,22 @@ async def download_message_media(
             photos.append({})
 
     if has_video:
-        # Видео не скачиваем (слишком большие), просто помечаем наличие
-        videos.append({})
+        video_doc = getattr(msg, "video", None) or getattr(msg, "document", None)
+        video_size = getattr(video_doc, "size", 0) or 0
+        mime = getattr(video_doc, "mime_type", "video/mp4") or "video/mp4"
+        ext = "mp4" if "mp4" in mime else mime.split("/")[-1]
+        if video_size <= MAX_VIDEO_SIZE:
+            filename = f"{msg.id}.{ext}"
+            filepath = os.path.join(msg_dir, filename)
+            try:
+                await client.download_media(msg, file=filepath)
+                videos.append({"url": f"/media/{source_id}/{filename}"})
+            except Exception as e:
+                print(f"    Ошибка скачивания видео {msg.id}: {e}")
+                videos.append({})
+        else:
+            print(f"    Видео {msg.id} слишком большое ({video_size // 1024 // 1024} МБ > {MAX_VIDEO_SIZE // 1024 // 1024} МБ), пропуск")
+            videos.append({})
 
     return json.dumps({"photos": photos, "videos": videos})
 

@@ -35,8 +35,8 @@ def _delete_media_files(media_json: str | None, source_id: int | None) -> int:
     deleted = 0
     try:
         data = json.loads(media_json)
-        for photo in data.get("photos", []):
-            url = photo.get("url", "")
+        for item in data.get("photos", []) + data.get("videos", []):
+            url = item.get("url", "")
             if url.startswith("/media/"):
                 filepath = os.path.join(_data_dir, url.lstrip("/"))
                 if os.path.isfile(filepath):
