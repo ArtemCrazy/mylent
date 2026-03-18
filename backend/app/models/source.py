@@ -21,4 +21,4 @@ class Source(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    posts: Mapped[list["Post"]] = relationship("Post", back_populates="source")
+    posts: Mapped[list["Post"]] = relationship("Post", back_populates="source", cascade="all, delete-orphan", passive_deletes=True)

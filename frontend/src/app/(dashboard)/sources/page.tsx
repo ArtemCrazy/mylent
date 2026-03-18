@@ -174,13 +174,13 @@ export default function SourcesPage() {
   }
 
   async function handleDelete(s: Source, onDeleted?: () => void) {
-    if (!confirm(`Удалить источник «${s.title}»?`)) return;
+    if (!confirm(`Удалить источник «${s.title}» и все его посты?`)) return;
     try {
       await api.sources.delete(s.id);
       onDeleted?.();
       loadSources();
-    } catch {
-      // ignore
+    } catch (err) {
+      alert("Не удалось удалить: " + (err instanceof Error ? err.message : "неизвестная ошибка"));
     }
   }
 
