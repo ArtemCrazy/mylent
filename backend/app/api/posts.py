@@ -115,7 +115,7 @@ async def get_post(post_id: int, db: DbSession, current_user: CurrentUser):
 
 @router.patch("/{post_id}", response_model=PostResponse)
 async def update_post(post_id: int, body: PostUpdate, db: DbSession, current_user: CurrentUser):
-    result = await db.execute(select(Post).options(selectinload(Post.ai_analysis)).where(Post.id == post_id))
+    result = await db.execute(select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis)).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -128,7 +128,7 @@ async def update_post(post_id: int, body: PostUpdate, db: DbSession, current_use
 
 @router.post("/{post_id}/favorite", response_model=PostResponse)
 async def toggle_favorite(post_id: int, db: DbSession, current_user: CurrentUser):
-    result = await db.execute(select(Post).options(selectinload(Post.ai_analysis)).where(Post.id == post_id))
+    result = await db.execute(select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis)).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -140,7 +140,7 @@ async def toggle_favorite(post_id: int, db: DbSession, current_user: CurrentUser
 
 @router.post("/{post_id}/hide", response_model=PostResponse)
 async def hide_post(post_id: int, db: DbSession, current_user: CurrentUser):
-    result = await db.execute(select(Post).options(selectinload(Post.ai_analysis)).where(Post.id == post_id))
+    result = await db.execute(select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis)).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -152,7 +152,7 @@ async def hide_post(post_id: int, db: DbSession, current_user: CurrentUser):
 
 @router.post("/{post_id}/archive", response_model=PostResponse)
 async def archive_post(post_id: int, db: DbSession, current_user: CurrentUser):
-    result = await db.execute(select(Post).options(selectinload(Post.ai_analysis)).where(Post.id == post_id))
+    result = await db.execute(select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis)).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -164,7 +164,7 @@ async def archive_post(post_id: int, db: DbSession, current_user: CurrentUser):
 
 @router.post("/{post_id}/read", response_model=PostResponse)
 async def mark_read(post_id: int, db: DbSession, current_user: CurrentUser):
-    result = await db.execute(select(Post).options(selectinload(Post.ai_analysis)).where(Post.id == post_id))
+    result = await db.execute(select(Post).options(selectinload(Post.source), selectinload(Post.ai_analysis)).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
