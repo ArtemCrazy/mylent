@@ -74,18 +74,14 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
 
         try:
             entity = await client.get_entity(username)
-        except Exception as e:
-            print(f"  Ошибка канала '{source.title}' ({username}): {e}")
-            continue
 
-        if not entity_has_public_link(entity):
-            print(f"  Пропуск '{source.title}': нет публичной ссылки (только приглашение), парсить нельзя")
-            continue
+            if not entity_has_public_link(entity):
+                print(f"  Пропуск '{source.title}': нет публичной ссылки (только приглашение), парсить нельзя")
+                continue
 
-        try:
             messages = await client.get_messages(entity, limit=50)
         except Exception as e:
-            print(f"  Ошибка получения сообщений '{source.title}': {e}")
+            print(f"  Ошибка канала '{source.title}' ({username}): {e}")
             continue
 
         existing = await db.execute(
@@ -108,7 +104,11 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
             if published_at and published_at.tzinfo is None:
                 published_at = published_at.replace(tzinfo=timezone.utc)
 
-            media_json = await download_message_media(client, msg, source.id)
+            try:
+                media_json = await download_message_media(client, msg, source.id)
+            except Exception as e:
+                print(f"    Ошибка медиа {msg.id}: {e}")
+                media_json = None
             html_text = message_to_html(msg)
 
             post = Post(
@@ -125,7 +125,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
                 media_json=media_json,
             )
             db.add(post)
-            await db.flush()  # get post.id for signal matching
+            await db.flush()
             await check_post_signals(db, post.id, source.id, text)
             existing_ids.add(eid)
             added += 1
@@ -133,6 +133,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
         if added > 0:
             source.last_synced_at = now
             total_added += added
+            await db.commit()
             print(f"  {source.title}: добавлено {added} постов")
 
     return total_added
@@ -177,11 +178,12 @@ async def main() -> None:
                 print(f"Готово. Добавлено постов: {added}")
             except Exception as e:
                 await db.rollback()
-                import traceback
                 print(f"Ошибка синхронизации: {e}")
-                traceback.print_exc()
     finally:
-        await client.disconnect()
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
