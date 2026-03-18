@@ -130,11 +130,11 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="px-4 pt-2 pb-6 md:p-6 max-w-3xl mx-auto">
+    <div className="px-4 pt-4 pb-6 md:p-6 max-w-3xl mx-auto">
       <header className="mb-4">
         <h1 className="text-2xl font-semibold hidden md:block">Лента</h1>
         <p className="text-sm text-[var(--muted)] mb-4 hidden md:block">Публикации из подключённых источников. Обновляется автоматически.</p>
-        <div className="flex gap-3 overflow-x-auto p-2 pb-3 scrollbar-hide">
+        <div className="flex gap-3 overflow-x-auto pt-3 px-2 pb-3 scrollbar-hide">
           {FEED_CATEGORIES.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
             return (
