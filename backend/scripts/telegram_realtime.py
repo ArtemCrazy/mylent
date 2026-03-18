@@ -158,9 +158,10 @@ async def main() -> None:
             sys.exit(1)
         print("Загрузка каналов…")
         await load_sources(client)
-        if not _channel_to_source:
-            print("Нет активных Telegram-источников. Добавьте каналы в интерфейсе.")
-            return
+        while not _channel_to_source:
+            print("Нет активных Telegram-источников. Повтор через 30 с…")
+            await asyncio.sleep(30)
+            await load_sources(client)
         async def _reload_sources_loop() -> None:
             while True:
                 await asyncio.sleep(_RELOAD_INTERVAL_SEC)

@@ -52,14 +52,19 @@ jobs:
               TG_SIZE=$(stat -c%s /tmp/tg.session 2>/dev/null || echo 0)
               echo "Session file decoded: ${TG_SIZE} bytes"
               if [ "$TG_SIZE" -gt 1000 ]; then
+                # Copy session for backend and sync (shared path)
                 docker cp /tmp/tg.session mylent-backend-1:/app/data/telegram_session.session
                 echo "Copied to backend"
                 docker cp /tmp/tg.session mylent-sync-1:/app/data/telegram_session.session 2>/dev/null && echo "Copied to sync" || true
-                # Verify copy inside container
-                docker exec mylent-backend-1 ls -la /app/data/telegram_session.session 2>/dev/null || echo "WARNING: file not found in backend container"
-                # Restart containers so they pick up fresh session
+                # Copy session for realtime (separate path to avoid SQLite lock conflicts)
+                docker cp /tmp/tg.session mylent-realtime-1:/app/data/telegram_realtime.session 2>/dev/null && echo "Copied to realtime" || true
+                # Verify copies
+                docker exec mylent-backend-1 ls -la /app/data/telegram_session.session 2>/dev/null || echo "WARNING: session not found in backend"
+                docker exec mylent-realtime-1 ls -la /app/data/telegram_realtime.session 2>/dev/null || echo "WARNING: session not found in realtime"
+                # Restart all Telegram-dependent containers
                 docker restart mylent-backend-1 && echo "Backend restarted"
                 docker restart mylent-sync-1 && echo "Sync restarted"
+                docker restart mylent-realtime-1 && echo "Realtime restarted"
                 sleep 5
               else
                 echo "WARNING: session file too small (${TG_SIZE} bytes), skipping restore"
@@ -74,6 +79,8 @@ jobs:
             docker logs mylent-backend-1 --tail 30 2>&1 || true
             echo "=== Sync logs (last 30 lines) ==="
             docker logs mylent-sync-1 --tail 30 2>&1 || true
+            echo "=== Realtime logs (last 30 lines) ==="
+            docker logs mylent-realtime-1 --tail 30 2>&1 || true
             echo "=== Reset password ==="
             docker exec mylent-backend-1 python -m scripts.reset_password && echo "Password reset OK" || echo "Password reset FAILED"
             echo "Deploy finished. MyLent only: /root/mylent, ports 3001 8001 5433."
