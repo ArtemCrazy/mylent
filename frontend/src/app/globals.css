@@ -23,4 +23,16 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 18px 3px rgba(96, 165, 250, 0.25); }
+  50% { box-shadow: 0 0 24px 6px rgba(96, 165, 250, 0.35); }
 }

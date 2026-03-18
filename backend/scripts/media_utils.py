@@ -82,6 +82,21 @@ async def download_message_media(
     return json.dumps({"photos": photos, "videos": videos})
 
 
+def _utf16_to_py_offsets(text: str) -> list[int]:
+    """Build mapping: utf16_offset -> python string index.
+
+    Telegram entity offsets/lengths are in UTF-16 code units.
+    Characters outside BMP (emojis etc.) take 2 UTF-16 units but 1 Python char.
+    """
+    mapping: list[int] = []
+    for i, ch in enumerate(text):
+        mapping.append(i)
+        if ord(ch) > 0xFFFF:
+            mapping.append(i)  # surrogate pair — 2 UTF-16 units, same Python index
+    mapping.append(len(text))  # sentinel for end offset
+    return mapping
+
+
 def message_to_html(msg: Message) -> str:
     """Convert Telegram message text + entities to HTML with links preserved."""
     text = msg.message or msg.text or ""
@@ -91,15 +106,22 @@ def message_to_html(msg: Message) -> str:
     if not entities:
         return html_module.escape(text)
 
+    # Build UTF-16 → Python offset mapping
+    u16map = _utf16_to_py_offsets(text)
+
+    def _py(offset: int) -> int:
+        """Convert UTF-16 offset to Python string index (clamped)."""
+        return u16map[min(offset, len(u16map) - 1)]
+
     # Sort entities by offset
     sorted_ents = sorted(entities, key=lambda e: e.offset)
 
     result = []
-    last_end = 0
+    last_end = 0  # Python string index
 
     for ent in sorted_ents:
-        start = ent.offset
-        end = ent.offset + ent.length
+        start = _py(ent.offset)
+        end = _py(ent.offset + ent.length)
         # Add text before this entity
         if start > last_end:
             result.append(html_module.escape(text[last_end:start]))

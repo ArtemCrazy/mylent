@@ -5,16 +5,16 @@ import { api, type Post } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
 
 const FEED_CATEGORIES = [
-  { value: "", label: "Все" },
-  { value: "news", label: "Новости" },
-  { value: "tech", label: "Технологии" },
-  { value: "ai", label: "ИИ" },
-  { value: "web_studio", label: "Веб-студия" },
-  { value: "sport", label: "Спорт" },
-  { value: "humor", label: "Юмор" },
-  { value: "space", label: "Космос" },
-  { value: "investments", label: "Инвестиции" },
-  { value: "other", label: "Прочее" },
+  { value: "", label: "Все", icon: "◆", gradient: "from-gray-600 to-gray-800" },
+  { value: "news", label: "Новости", icon: "📰", gradient: "from-orange-400 to-red-500" },
+  { value: "tech", label: "Технологии", icon: "💻", gradient: "from-blue-400 to-indigo-600" },
+  { value: "ai", label: "ИИ", icon: "🤖", gradient: "from-violet-400 to-purple-600" },
+  { value: "web_studio", label: "Веб-студия", icon: "🎨", gradient: "from-pink-400 to-rose-600" },
+  { value: "sport", label: "Спорт", icon: "⚽", gradient: "from-green-400 to-emerald-600" },
+  { value: "humor", label: "Юмор", icon: "😄", gradient: "from-yellow-400 to-amber-500" },
+  { value: "space", label: "Космос", icon: "🚀", gradient: "from-indigo-400 to-blue-700" },
+  { value: "investments", label: "Инвестиции", icon: "📈", gradient: "from-emerald-400 to-teal-600" },
+  { value: "other", label: "Прочее", icon: "📌", gradient: "from-slate-400 to-slate-600" },
 ];
 
 const PAGE_SIZE = 50;
@@ -134,21 +134,31 @@ export default function FeedPage() {
       <header className="mb-4">
         <h1 className="text-2xl font-semibold">Лента</h1>
         <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
-        <div className="flex flex-wrap gap-1 border-b border-[var(--border)] pb-2">
-          {FEED_CATEGORIES.map((c) => (
-            <button
-              key={c.value || "all"}
-              type="button"
-              onClick={() => setCategory(c.value)}
-              className={`px-3 py-1.5 rounded-t text-sm font-medium transition-colors ${
-                (c.value === "" && !category) || category === c.value
-                  ? "bg-[var(--accent)] text-white"
-                  : "bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--card-hover)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {FEED_CATEGORIES.map((c) => {
+            const isActive = (c.value === "" && !category) || category === c.value;
+            return (
+              <button
+                key={c.value || "all"}
+                type="button"
+                onClick={() => setCategory(c.value)}
+                className="flex flex-col items-center gap-1.5 shrink-0 group"
+              >
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-xl shadow-lg transition-all ${
+                  isActive
+                    ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
+                    : "opacity-70 group-hover:opacity-100 group-hover:scale-105"
+                }`}>
+                  {c.icon}
+                </div>
+                <span className={`text-[11px] leading-tight transition-colors ${
+                  isActive ? "text-[var(--foreground)] font-semibold" : "text-[var(--muted)] group-hover:text-[var(--foreground)]"
+                }`}>
+                  {c.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </header>
       {loading ? (
