@@ -5,10 +5,7 @@ import { api, type Post } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
 import { CATEGORY_DEFS, type CategoryDef } from "@/lib/categories";
 
-const FEED_CATEGORIES: CategoryDef[] = [
-  { value: "", label: "Все", icon: "◆", gradient: "from-gray-600 to-gray-800" },
-  ...CATEGORY_DEFS,
-];
+const ALL_ITEM: CategoryDef = { value: "", label: "Все", icon: "◆", gradient: "from-gray-600 to-gray-800" };
 
 const PAGE_SIZE = 50;
 const NEW_POST_TTL = 60_000;
@@ -20,9 +17,24 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("");
+  const [feedCategories, setFeedCategories] = useState<CategoryDef[]>([ALL_ITEM]);
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
   const knownIdsRef = useRef<Set<number>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // В ленте показываем только категории, у которых есть добавленные источники (show_in_feed)
+  useEffect(() => {
+    api.sources
+      .list()
+      .then((sources) => {
+        const withFeed = sources.filter((s) => s.show_in_feed !== false);
+        const cats = new Set<string>();
+        withFeed.forEach((s) => cats.add(s.category || "other"));
+        const ordered = CATEGORY_DEFS.filter((c) => cats.has(c.value));
+        setFeedCategories([ALL_ITEM, ...ordered]);
+      })
+      .catch(() => {});
+  }, []);
 
   // Load first page or silent refresh (only refreshes first page)
   const loadPosts = useCallback((silent = false) => {
@@ -128,7 +140,7 @@ export default function FeedPage() {
         <h1 className="text-2xl font-semibold hidden md:block">Лента</h1>
         <p className="text-sm text-[var(--muted)] mb-4 hidden md:block">Публикации из подключённых источников. Обновляется автоматически.</p>
         <div className="flex gap-3 overflow-x-auto pt-[4.75rem] md:pt-3 px-2 pb-3 scrollbar-hide">
-          {FEED_CATEGORIES.map((c) => {
+          {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
             return (
               <button
@@ -137,11 +149,13 @@ export default function FeedPage() {
                 onClick={() => setCategory(c.value)}
                 className="flex flex-col items-center gap-1.5 shrink-0 group"
               >
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-xl shadow-lg transition-all ${
-                  isActive
-                    ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
-                    : "opacity-70 group-hover:opacity-100 group-hover:scale-105"
-                }`}>
+                <div
+                  className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-xl shadow-lg transition-all ${
+                    isActive
+                      ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
+                      : "opacity-70 group-hover:opacity-100 group-hover:scale-105"
+                  }`}
+                >
                   {c.icon}
                 </div>
                 <span className={`text-[11px] leading-tight transition-colors ${
