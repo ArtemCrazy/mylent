@@ -2,20 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { api, type Post, getMediaUrl } from "@/lib/api";
+import { getCategoryDef } from "@/lib/categories";
 
 const COLLAPSE_THRESHOLD = 2000;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  news: "Новости",
-  tech: "Технологии",
-  ai: "ИИ",
-  web_studio: "Веб-студия",
-  sport: "Спорт",
-  humor: "Юмор",
-  space: "Космос",
-  investments: "Инвестиции",
-  other: "Прочее",
-};
+// Категория показывается через общий справочник (чтобы были корректные названия/иконки)
 
 function formatDate(s: string) {
   const d = new Date(s);
@@ -37,7 +28,7 @@ function getSourceAvatar(configJson: string | null): string | null {
 }
 
 function getCategoryLabel(cat: string | null): string {
-  return (cat && CATEGORY_LABELS[cat]) || CATEGORY_LABELS.other || "Прочее";
+  return getCategoryDef(cat)?.label || (cat ? cat : "Другое");
 }
 
 type MediaItem = { type: "photo" | "video"; url?: string; file_id?: string };

@@ -3,18 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Post } from "@/lib/api";
 import { PostCard } from "@/components/PostCard";
+import { CATEGORY_DEFS, type CategoryDef } from "@/lib/categories";
 
-const FEED_CATEGORIES = [
+const FEED_CATEGORIES: CategoryDef[] = [
   { value: "", label: "Все", icon: "◆", gradient: "from-gray-600 to-gray-800" },
-  { value: "news", label: "Новости", icon: "📰", gradient: "from-orange-400 to-red-500" },
-  { value: "tech", label: "Технологии", icon: "💻", gradient: "from-blue-400 to-indigo-600" },
-  { value: "ai", label: "ИИ", icon: "🤖", gradient: "from-violet-400 to-purple-600" },
-  { value: "web_studio", label: "Веб-студия", icon: "🎨", gradient: "from-pink-400 to-rose-600" },
-  { value: "sport", label: "Спорт", icon: "⚽", gradient: "from-green-400 to-emerald-600" },
-  { value: "humor", label: "Юмор", icon: "😄", gradient: "from-yellow-400 to-amber-500" },
-  { value: "space", label: "Космос", icon: "🚀", gradient: "from-indigo-400 to-blue-700" },
-  { value: "investments", label: "Инвестиции", icon: "📈", gradient: "from-emerald-400 to-teal-600" },
-  { value: "other", label: "Прочее", icon: "📌", gradient: "from-slate-400 to-slate-600" },
+  ...CATEGORY_DEFS,
 ];
 
 const PAGE_SIZE = 50;

@@ -2,18 +2,7 @@
 
 import { useState } from "react";
 import type { Source } from "@/lib/api";
-
-const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
-  news: { label: "Новости", icon: "📰" },
-  tech: { label: "Технологии", icon: "💻" },
-  ai: { label: "ИИ", icon: "🤖" },
-  web_studio: { label: "Веб-студия", icon: "🎨" },
-  sport: { label: "Спорт", icon: "⚽" },
-  humor: { label: "Юмор", icon: "😄" },
-  space: { label: "Космос", icon: "🚀" },
-  investments: { label: "Инвестиции", icon: "📈" },
-  other: { label: "Прочее", icon: "📌" },
-};
+import { CATEGORY_ORDER, getCategoryDef } from "@/lib/categories";
 
 interface SourcePickerProps {
   sources: Source[];
@@ -33,8 +22,9 @@ export function SourcePicker({ sources, selected, onChange }: SourcePickerProps)
   }
 
   const categories = Object.keys(grouped).sort((a, b) => {
-    const order = Object.keys(CATEGORY_LABELS);
-    return order.indexOf(a) - order.indexOf(b);
+    const orderA = CATEGORY_ORDER.indexOf(a);
+    const orderB = CATEGORY_ORDER.indexOf(b);
+    return (orderA === -1 ? Number.MAX_SAFE_INTEGER : orderA) - (orderB === -1 ? Number.MAX_SAFE_INTEGER : orderB);
   });
 
   function toggleSource(id: number) {
@@ -74,7 +64,8 @@ export function SourcePicker({ sources, selected, onChange }: SourcePickerProps)
   return (
     <div className="space-y-1.5">
       {categories.map((cat) => {
-        const info = CATEGORY_LABELS[cat] || { label: cat, icon: "📁" };
+        const def = getCategoryDef(cat);
+        const info = def ? { label: def.label, icon: def.icon } : { label: cat, icon: "📁" };
         const status = getCatStatus(cat);
         const expanded = expandedCats.has(cat);
         const catSources = grouped[cat];

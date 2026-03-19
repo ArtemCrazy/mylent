@@ -2,28 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { api, type Source } from "@/lib/api";
+import { CATEGORY_DEFS, getCategoryDef, CATEGORY_ORDER } from "@/lib/categories";
 
 function formatDate(s: string | null) {
   if (!s) return "—";
   return new Date(s).toLocaleString("ru", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-const CATEGORIES = [
-  { value: "news", label: "Новости" },
-  { value: "tech", label: "Технологии" },
-  { value: "ai", label: "ИИ" },
-  { value: "web_studio", label: "Веб-студия" },
-  { value: "sport", label: "Спорт" },
-  { value: "humor", label: "Юмор" },
-  { value: "space", label: "Космос" },
-  { value: "investments", label: "Инвестиции" },
-  { value: "other", label: "Прочее" },
-] as const;
-
-const CATEGORY_ORDER: string[] = ["news", "tech", "ai", "web_studio", "sport", "humor", "space", "investments", "other"];
-
 function getCategoryLabel(cat: string | null): string {
-  return CATEGORIES.find((c) => c.value === (cat || "other"))?.label ?? "Прочее";
+  return getCategoryDef(cat)?.label ?? (cat ? cat : "Другое");
 }
 
 function getSourceAvatar(configJson: string | null): string | null {
@@ -223,15 +210,38 @@ export default function SourcesPage() {
           </div>
           <div>
             <label className="block text-sm text-[var(--muted)] mb-1">Категория</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)]"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {CATEGORY_DEFS.map((c) => {
+                const isActive = c.value === category;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setCategory(c.value)}
+                    className="flex flex-col items-center gap-1 shrink-0"
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-lg shadow-lg transition-all ${
+                        isActive
+                          ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
+                          : "opacity-80 hover:opacity-100"
+                      }`}
+                      title={c.label}
+                    >
+                      {c.icon}
+                    </div>
+                    <span
+                      className={`text-[10px] leading-tight max-w-[90px] truncate ${
+                        isActive ? "text-[var(--foreground)] font-semibold" : "text-[var(--muted)]"
+                      }`}
+                      title={c.label}
+                    >
+                      {c.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -327,15 +337,38 @@ export default function SourcesPage() {
                               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] font-medium"
                               placeholder="Название"
                             />
-                            <select
-                              value={editCategory}
-                              onChange={(e) => setEditCategory(e.target.value)}
-                              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] text-sm"
-                            >
-                              {CATEGORIES.map((c) => (
-                                <option key={c.value} value={c.value}>{c.label}</option>
-                              ))}
-                            </select>
+                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                              {CATEGORY_DEFS.map((c) => {
+                                const isActive = c.value === editCategory;
+                                return (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    onClick={() => setEditCategory(c.value)}
+                                    className="flex flex-col items-center gap-1 shrink-0"
+                                  >
+                                    <div
+                                      className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-lg shadow-lg transition-all ${
+                                        isActive
+                                          ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
+                                          : "opacity-80 hover:opacity-100"
+                                      }`}
+                                      title={c.label}
+                                    >
+                                      {c.icon}
+                                    </div>
+                                    <span
+                                      className={`text-[10px] leading-tight max-w-[90px] truncate ${
+                                        isActive ? "text-[var(--foreground)] font-semibold" : "text-[var(--muted)]"
+                                      }`}
+                                      title={c.label}
+                                    >
+                                      {c.label}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                             <label className="flex items-center gap-2 cursor-pointer select-none">
                               <input
                                 type="checkbox"
