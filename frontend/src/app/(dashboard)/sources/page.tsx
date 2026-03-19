@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type Source } from "@/lib/api";
 import { CATEGORY_DEFS, getCategoryDef, CATEGORY_ORDER } from "@/lib/categories";
 
@@ -32,6 +32,94 @@ function slugFromTitle(title: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "") || "source";
   return base.slice(0, 80);
+}
+
+function CategorySelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) setSearchQuery("");
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setIsOpen(false);
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const selected = CATEGORY_DEFS.find((c) => c.value === value) ?? CATEGORY_DEFS.find((c) => c.value === "other")!;
+  const filtered = searchQuery.trim()
+    ? CATEGORY_DEFS.filter((c) => c.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : CATEGORY_DEFS;
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
+        className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-left flex items-center gap-2 text-[var(--foreground)] hover:bg-[var(--card-hover)]"
+      >
+        <span className={`w-8 h-8 rounded-lg bg-gradient-to-br ${selected.gradient} flex items-center justify-center text-sm shrink-0`}>
+          {selected.icon}
+        </span>
+        <span className="truncate">{selected.label}</span>
+        <span className="ml-auto text-[var(--muted)]">▼</span>
+      </button>
+      {isOpen && (
+        <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg overflow-hidden">
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            placeholder="Найти категорию по названию..."
+            className="w-full px-3 py-2 border-b border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted)]"
+          />
+          <ul className="max-h-60 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-4 text-sm text-[var(--muted)]">Ничего не найдено</li>
+            ) : (
+              filtered.map((c) => (
+                <li key={c.value}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(c.value);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-[var(--card-hover)] text-left ${c.value === value ? "bg-[var(--card-hover)]" : ""}`}
+                  >
+                    <span className={`w-8 h-8 rounded-lg bg-gradient-to-br ${c.gradient} flex items-center justify-center text-sm shrink-0`}>
+                      {c.icon}
+                    </span>
+                    <span>{c.label}</span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function SourcesPage() {
@@ -210,38 +298,7 @@ export default function SourcesPage() {
           </div>
           <div>
             <label className="block text-sm text-[var(--muted)] mb-1">Категория</label>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {CATEGORY_DEFS.map((c) => {
-                const isActive = c.value === category;
-                return (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setCategory(c.value)}
-                    className="flex flex-col items-center gap-1 shrink-0"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-lg shadow-lg transition-all ${
-                        isActive
-                          ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
-                          : "opacity-80 hover:opacity-100"
-                      }`}
-                      title={c.label}
-                    >
-                      {c.icon}
-                    </div>
-                    <span
-                      className={`text-[10px] leading-tight max-w-[90px] truncate ${
-                        isActive ? "text-[var(--foreground)] font-semibold" : "text-[var(--muted)]"
-                      }`}
-                      title={c.label}
-                    >
-                      {c.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <CategorySelect value={category} onChange={setCategory} />
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -337,37 +394,9 @@ export default function SourcesPage() {
                               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] font-medium"
                               placeholder="Название"
                             />
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                              {CATEGORY_DEFS.map((c) => {
-                                const isActive = c.value === editCategory;
-                                return (
-                                  <button
-                                    key={c.value}
-                                    type="button"
-                                    onClick={() => setEditCategory(c.value)}
-                                    className="flex flex-col items-center gap-1 shrink-0"
-                                  >
-                                    <div
-                                      className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${c.gradient} flex items-center justify-center text-lg shadow-lg transition-all ${
-                                        isActive
-                                          ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] scale-105"
-                                          : "opacity-80 hover:opacity-100"
-                                      }`}
-                                      title={c.label}
-                                    >
-                                      {c.icon}
-                                    </div>
-                                    <span
-                                      className={`text-[10px] leading-tight max-w-[90px] truncate ${
-                                        isActive ? "text-[var(--foreground)] font-semibold" : "text-[var(--muted)]"
-                                      }`}
-                                      title={c.label}
-                                    >
-                                      {c.label}
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                            <div>
+                              <span className="block text-xs text-[var(--muted)] mb-1">Категория</span>
+                              <CategorySelect value={editCategory} onChange={setEditCategory} />
                             </div>
                             <label className="flex items-center gap-2 cursor-pointer select-none">
                               <input
