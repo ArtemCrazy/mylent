@@ -160,7 +160,7 @@ export default function DigestsPage() {
           <h1 className="text-2xl font-bold">{showSettings ? "Настройки дайджестов" : "Дайджесты"}</h1>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-1 transition-colors ${showSettings ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+            className={`p-1 mt-1.5 transition-colors ${showSettings ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
             title="Настройки"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

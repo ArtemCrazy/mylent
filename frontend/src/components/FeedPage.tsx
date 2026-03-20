@@ -178,14 +178,14 @@ export default function FeedPage() {
 
   return (
     <div className="px-4 pb-6 md:p-6 max-w-3xl mx-auto">
-      <header className="mb-4 relative z-10 flex flex-col items-start">
+      <header className="mb-4 relative z-10 w-full">
         <div className="flex items-center gap-0.5">
           <h1 className="text-2xl font-bold">Лента</h1>
           
           <div className="relative z-[100]" ref={settingsRef}>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-1 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              className="p-1 mt-1.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               title="Настройки ленты"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -266,9 +266,9 @@ export default function FeedPage() {
           </div>
         </div>
         
-        <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
+        <p className="text-sm text-[var(--muted)] mb-4 mt-1">Публикации из подключённых источников. Обновляется автоматически.</p>
 
-        <div className={`flex gap-3 overflow-x-auto px-1 pb-3 scrollbar-hide pt-[6rem] md:pt-3 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-12px),transparent)] -mx-2`}>
+        <div className={`flex gap-3 overflow-x-auto w-full pb-3 scrollbar-hide pt-[6rem] md:pt-3 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] px-4 -mx-4 md:px-0 md:mx-0`}>
           {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
             
