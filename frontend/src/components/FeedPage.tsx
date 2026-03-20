@@ -33,11 +33,13 @@ export default function FeedPage() {
   const [hideAds, setHideAds] = useState(false);
   const [childMode, setChildMode] = useState(false);
   const [collapseCategories, setCollapseCategories] = useState(false);
+  const [hideDuplicates, setHideDuplicates] = useState(false);
 
   useEffect(() => {
     setHideAds(localStorage.getItem("hideAds") === "true");
     setChildMode(localStorage.getItem("childMode") === "true");
     setCollapseCategories(localStorage.getItem("collapseCategories") === "true");
+    setHideDuplicates(localStorage.getItem("hideDuplicates") === "true");
   }, []);
 
   const toggleHideAds = () => {
@@ -50,6 +52,12 @@ export default function FeedPage() {
     const newVal = !childMode;
     setChildMode(newVal);
     localStorage.setItem("childMode", String(newVal));
+  };
+
+  const toggleHideDuplicates = () => {
+    const newVal = !hideDuplicates;
+    setHideDuplicates(newVal);
+    localStorage.setItem("hideDuplicates", String(newVal));
   };
 
   const toggleCollapseCategories = () => {
@@ -87,8 +95,9 @@ export default function FeedPage() {
   // Load first page or silent refresh (only refreshes first page)
   const loadPosts = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    const params: Record<string, string | number> = { limit: PAGE_SIZE, offset: 0 };
+    const params: Record<string, string | number | boolean> = { limit: PAGE_SIZE, offset: 0 };
     if (category) params.category = category;
+    if (hideDuplicates) params.hide_duplicates = true;
     api.posts
       .list(params)
       .then((fetched) => {
@@ -125,14 +134,15 @@ export default function FeedPage() {
       })
       .catch((e) => !silent && setError(e.message))
       .finally(() => { if (!silent) setLoading(false); });
-  }, [category]);
+  }, [category, hideDuplicates]);
 
   // Load next page
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
-    const params: Record<string, string | number> = { limit: PAGE_SIZE, offset: posts.length };
+    const params: Record<string, string | number | boolean> = { limit: PAGE_SIZE, offset: posts.length };
     if (category) params.category = category;
+    if (hideDuplicates) params.hide_duplicates = true;
     api.posts
       .list(params)
       .then((fetched) => {
@@ -146,7 +156,7 @@ export default function FeedPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false));
-  }, [loadingMore, hasMore, posts.length, category]);
+  }, [loadingMore, hasMore, posts.length, category, hideDuplicates]);
 
   // Initial load + reset on category change
   useEffect(() => {
@@ -229,6 +239,28 @@ export default function FeedPage() {
             
             {showSettings && (
               <div className="absolute left-0 top-8 w-64 bg-[var(--card)] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2 flex flex-col gap-3 font-normal">
+                <div className="flex items-center justify-between group relative">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={hideDuplicates}
+                      onChange={toggleHideDuplicates}
+                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                    />
+                    Скрывать дубли
+                  </label>
+                  
+                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+                    </svg>
+                  </div>
+                  
+                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 right-0 md:left-0 md:right-auto md:mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
+                    Скрывает потоковые клоны новостей (алгоритм математически находит посты с одинаковым смыслом).
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between group relative">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
                     <input

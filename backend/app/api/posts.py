@@ -69,6 +69,7 @@ async def list_posts(
     only_unread: bool = False,
     only_for_studio: bool = False,
     only_with_summary: bool = False,
+    hide_duplicates: bool = False,
     sort: str = "published_at",
     order: str = "desc",
     limit: int = Query(50, le=100),
@@ -94,6 +95,10 @@ async def list_posts(
             q = q.where(AIAnalysis.business_relevance_score >= 60)
         if topic:
             q = q.where(AIAnalysis.main_topic == topic)
+
+    if hide_duplicates:
+        q = q.where(Post.duplicate_group_id.is_(None))
+
     order_col = getattr(Post, sort, Post.published_at)
     q = q.order_by(desc(order_col) if order == "desc" else asc(order_col))
     q = q.offset(offset).limit(limit)

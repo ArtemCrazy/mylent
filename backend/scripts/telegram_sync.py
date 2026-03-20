@@ -28,6 +28,7 @@ from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
 from app.services.signal_matcher import check_post_signals
+from app.services.deduplicator import detect_and_mark_duplicate
 from scripts.media_utils import download_message_media, message_to_html
 
 
@@ -131,6 +132,7 @@ async def fetch_and_save(client: TelegramClient, db: AsyncSession) -> int:
             db.add(post)
             await db.flush()
             await check_post_signals(db, post.id, source.id, text)
+            await detect_and_mark_duplicate(db, post)
             existing_ids.add(eid)
             added += 1
 

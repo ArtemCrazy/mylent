@@ -25,6 +25,7 @@ from app.models.post import Post
 from app.models.source import Source
 from app.services.telegram_preview import entity_has_public_link
 from app.services.signal_matcher import check_post_signals
+from app.services.deduplicator import detect_and_mark_duplicate
 from scripts.media_utils import download_message_media, message_to_html
 
 
@@ -128,6 +129,7 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
         db.add(post)
         await db.flush()  # get post.id for signal matching
         alerts = await check_post_signals(db, post.id, source.id, text)
+        await detect_and_mark_duplicate(db, post)
         src = await db.get(Source, source.id)
         if src:
             src.last_synced_at = now

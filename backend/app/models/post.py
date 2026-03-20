@@ -21,6 +21,7 @@ class Post(Base):
     media_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     language: Mapped[str | None] = mapped_column(String(10), nullable=True)
     duplicate_group_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    embedding_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     read_status: Mapped[str] = mapped_column(String(20), default="unread", nullable=False)  # unread, read
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
