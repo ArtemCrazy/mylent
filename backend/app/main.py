@@ -23,6 +23,7 @@ def _add_missing_columns(conn):
     conn.execute(text("ALTER TABLE sources ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'other'"))
     conn.execute(text("ALTER TABLE sources ADD COLUMN IF NOT EXISTS show_in_feed BOOLEAN NOT NULL DEFAULT TRUE"))
     conn.execute(text("ALTER TABLE digests ADD COLUMN IF NOT EXISTS config_id INTEGER REFERENCES digest_configs(id) ON DELETE SET NULL"))
+    conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS embedding_json TEXT"))
     # Fix PostgreSQL sequences (SQLite не поддерживает setval)
     if "postgresql" in get_settings().database_url:
         conn.execute(text("""
