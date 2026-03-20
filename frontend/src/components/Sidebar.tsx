@@ -95,34 +95,11 @@ export function Sidebar() {
 
   const sidebarContent = (
     <>
-      <div className="p-4 border-b border-[var(--border)] shrink-0 flex items-center justify-between gap-2">
-        <Link href="/" className="font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
+      <div className="p-4 border-b border-[var(--border)] shrink-0 flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2.5 font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
+          <img src="/favicon.ico" alt="Логотип" className="w-6 h-6 shrink-0" />
           MyLent
         </Link>
-        {pathname !== "/login" && (
-          hasToken ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  localStorage.removeItem("token");
-                  window.location.href = "/login";
-                }
-              }}
-              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] shrink-0"
-            >
-              Выйти
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="text-sm text-[var(--accent)] hover:underline shrink-0"
-              onClick={() => setOpen(false)}
-            >
-              Войти
-            </Link>
-          )
-        )}
       </div>
       <nav className="p-2 flex-1 min-h-0 overflow-y-auto">
         <ul className="space-y-0.5">
@@ -133,10 +110,33 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-2 border-t border-[var(--border)] shrink-0">
+      <div className="p-2 border-t border-[var(--border)] shrink-0 flex items-center justify-between">
         <NavLink href={profileNav.href} label={profileNav.label} icon={profileNav.icon} pathname={pathname} onClick={() => setOpen(false)} />
+        {pathname !== "/login" && (
+          hasToken ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem("token");
+                  window.location.href = "/login";
+                }
+              }}
+              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] shrink-0 px-2"
+            >
+              Выйти
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm text-[var(--accent)] hover:underline shrink-0 px-2"
+              onClick={() => setOpen(false)}
+            >
+              Войти
+            </Link>
+          )
+        )}
       </div>
-    </>
   );
 
   return (
@@ -157,7 +157,8 @@ export function Sidebar() {
             )}
           </svg>
         </button>
-        <Link href="/" className="font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
+        <Link href="/" className="flex items-center gap-2.5 font-semibold text-lg tracking-tight" onClick={() => setOpen(false)}>
+          <img src="/favicon.ico" alt="Логотип" className="w-6 h-6 shrink-0" />
           MyLent
         </Link>
       </div>
