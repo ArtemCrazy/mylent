@@ -40,8 +40,8 @@ export default function FeedPage() {
     setSummaryData(null);
     
     const now = new Date();
-    let start = new Date();
-    let end = new Date();
+    const start = new Date();
+    const end = new Date();
     
     if (period === "today") {
       start.setHours(0, 0, 0, 0);
@@ -62,8 +62,8 @@ export default function FeedPage() {
         period_end: end.toISOString()
       });
       setSummaryData(res);
-    } catch (e: any) {
-      setSummaryError(e.message || "Ошибка загрузки сводки");
+    } catch (e) {
+      setSummaryError((e as Error).message || "Ошибка загрузки сводки");
     } finally {
       setSummaryLoading(false);
     }
