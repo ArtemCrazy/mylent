@@ -16,6 +16,15 @@ const mainNav = [
     ),
   },
   {
+    href: "/saved",
+    label: "Сохраненное",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+        <path fillRule="evenodd" d="M6 3a3 3 0 0 0-3 3v12a.75.75 0 0 0 1.127.65l5.873-3.356 5.873 3.356A.75.75 0 0 0 17 18V6a3 3 0 0 0-3-3H6Z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     href: "/digests",
     label: "Дайджесты",
     icon: (

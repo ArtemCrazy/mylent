@@ -26,10 +26,12 @@ export default function FeedPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [hideAds, setHideAds] = useState(false);
   const [childMode, setChildMode] = useState(false);
+  const [collapseCategories, setCollapseCategories] = useState(false);
 
   useEffect(() => {
     setHideAds(localStorage.getItem("hideAds") === "true");
     setChildMode(localStorage.getItem("childMode") === "true");
+    setCollapseCategories(localStorage.getItem("collapseCategories") === "true");
   }, []);
 
   const toggleHideAds = () => {
@@ -42,6 +44,12 @@ export default function FeedPage() {
     const newVal = !childMode;
     setChildMode(newVal);
     localStorage.setItem("childMode", String(newVal));
+  };
+
+  const toggleCollapseCategories = () => {
+    const newVal = !collapseCategories;
+    setCollapseCategories(newVal);
+    localStorage.setItem("collapseCategories", String(newVal));
   };
 
   useEffect(() => {
@@ -170,17 +178,14 @@ export default function FeedPage() {
 
   return (
     <div className="px-4 pb-6 md:p-6 max-w-3xl mx-auto">
-      <header className="mb-4 relative z-10">
-        <div className="flex items-start justify-between">
-          <div className="hidden md:block">
-            <h1 className="text-2xl font-semibold">Лента</h1>
-            <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
-          </div>
+      <header className="mb-4 relative z-10 flex flex-col items-start">
+        <div className="flex items-center gap-0.5">
+          <h1 className="text-2xl font-bold">Лента</h1>
           
-          <div className="absolute right-0 top-0 md:static flex flex-col items-end" ref={settingsRef}>
+          <div className="relative z-[100]" ref={settingsRef}>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] rounded-md transition-colors"
+              className="p-1 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               title="Настройки ленты"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -190,7 +195,7 @@ export default function FeedPage() {
             </button>
             
             {showSettings && (
-              <div className="absolute right-0 top-8 w-64 bg-[var(--card)] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2 flex flex-col gap-3">
+              <div className="absolute left-0 top-8 w-64 bg-[var(--card)] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2 flex flex-col gap-3 font-normal">
                 <div className="flex items-center justify-between group relative">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
                     <input
@@ -215,7 +220,7 @@ export default function FeedPage() {
 
                 <div className="flex items-center justify-between group relative">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
-                    <input
+                     <input
                       type="checkbox"
                       checked={childMode}
                       onChange={toggleChildMode}
@@ -226,22 +231,60 @@ export default function FeedPage() {
                   
                   <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+                    </svg>
+                  </div>
+                  
+                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 right-0 md:left-0 md:right-auto md:mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
+                     Скрывает из ленты новости, содержащие нецензурную лексику.
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between group relative">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={collapseCategories}
+                      onChange={toggleCollapseCategories}
+                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                    />
+                    Свернуть категории
+                  </label>
+                  
+                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
                     </svg>
                   </div>
                   
-                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full right-0 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
-                    Скрывает из ленты новости, содержащие нецензурную лексику.
+                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 left-0 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
+                    Оставляет только названия категорий, убирая большие иконки.
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
+        
+        <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
 
-        <div className="flex gap-3 overflow-x-auto pt-[4.75rem] md:pt-3 px-2 pb-3 scrollbar-hide">
+        <div className={`flex gap-3 overflow-x-auto px-2 pb-3 scrollbar-hide pt-[6rem] md:pt-3`}>
           {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
+            
+            if (collapseCategories) {
+              return (
+                <button
+                  key={c.value || "all"}
+                  type="button"
+                  onClick={() => setCategory(c.value)}
+                  className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap border ${isActive ? "bg-[var(--accent)] text-white border-transparent shadow-md" : "bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)]"}`}
+                >
+                  {c.label}
+                </button>
+              );
+            }
+
             return (
               <button
                 key={c.value || "all"}
