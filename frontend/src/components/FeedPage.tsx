@@ -7,7 +7,7 @@ import { CATEGORY_DEFS, type CategoryDef } from "@/lib/categories";
 
 const ALL_ITEM: CategoryDef = { value: "", label: "Все", icon: "◆", gradient: "from-gray-600 to-gray-800" };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 const NEW_POST_TTL = 60_000;
 
 export default function FeedPage() {

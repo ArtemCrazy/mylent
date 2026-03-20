@@ -37,7 +37,7 @@ export default function DigestsPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [digests, setDigests] = useState<Digest[]>([]);
   const [loadingDigests, setLoadingDigests] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [visibleCount, setVisibleCount] = useState(3);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Состояние настроек
@@ -77,7 +77,7 @@ export default function DigestsPage() {
     if (!el || loadingDigests || showSettings) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
-        setVisibleCount((prev) => prev + 5);
+        setVisibleCount((prev) => prev + 3);
       }
     }, { rootMargin: "400px" });
     observer.observe(el);
