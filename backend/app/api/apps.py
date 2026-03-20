@@ -18,6 +18,7 @@ _football_cache: dict = {
 
 API_FOOTBALL_HOST = "v3.football.api-sports.io"
 API_FOOTBALL_KEY = os.environ.get("API_FOOTBALL_KEY")
+RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY")
 
 @router.get("/football/fixtures")
 async def get_football_fixtures(date: str | None = None):
@@ -26,10 +27,10 @@ async def get_football_fixtures(date: str | None = None):
     По умолчанию на сегодня.
     Возвращает закешированный ответ в течение 5 минут.
     """
-    if not API_FOOTBALL_KEY:
+    if not API_FOOTBALL_KEY and not RAPIDAPI_KEY:
         raise HTTPException(
             status_code=503, 
-            detail="API_FOOTBALL_KEY is not configured in .env"
+            detail="API_FOOTBALL_KEY or RAPIDAPI_KEY is not configured in .env"
         )
 
     now = datetime.utcnow()
@@ -52,20 +53,25 @@ async def get_football_fixtures(date: str | None = None):
     # We will do 2 requests (since there are 2 leagues) to save parsing heavy "all matches" response
     # But wait! A single request for "date={date}" fetches EVERYTHING nicely and uses 1 credit.
     
-    headers = {
-        "x-apisports-key": API_FOOTBALL_KEY,
-        "x-apisports-host": API_FOOTBALL_HOST
-    }
-    
-    # Instead of requesting everything (~800 leagues), let's request them specifically to keep it fast
-    # Wait, API-Football allows `fixtures?date=YYYY-MM-DD` which uses 1 call
-    # Let's use that and filter by our allowed leagues (39, 235, and maybe Champions League (2))
     allowed_leagues = {39, 235, 2, 3}  # 2=UCL, 3=Europa
+    
+    if RAPIDAPI_KEY:
+        base_url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+        headers = {
+            "x-rapidapi-key": RAPIDAPI_KEY,
+            "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+        }
+    else:
+        base_url = f"https://{API_FOOTBALL_HOST}/fixtures"
+        headers = {
+            "x-apisports-key": API_FOOTBALL_KEY,
+            "x-apisports-host": API_FOOTBALL_HOST
+        }
     
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"https://{API_FOOTBALL_HOST}/fixtures",
+                base_url,
                 params={"date": target_date, "timezone": "Europe/Moscow"},
                 headers=headers,
                 timeout=10.0
