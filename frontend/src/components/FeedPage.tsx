@@ -22,6 +22,19 @@ export default function FeedPage() {
   const knownIdsRef = useRef<Set<number>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [hideAds, setHideAds] = useState(false);
+
+  useEffect(() => {
+    setHideAds(localStorage.getItem("hideAds") === "true");
+  }, []);
+
+  const toggleHideAds = () => {
+    const newVal = !hideAds;
+    setHideAds(newVal);
+    localStorage.setItem("hideAds", String(newVal));
+  };
+
   // В ленте показываем только категории, у которых есть добавленные источники (show_in_feed)
   useEffect(() => {
     api.sources
@@ -136,9 +149,53 @@ export default function FeedPage() {
 
   return (
     <div className="px-4 pb-6 md:p-6 max-w-3xl mx-auto">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold hidden md:block">Лента</h1>
-        <p className="text-sm text-[var(--muted)] mb-4 hidden md:block">Публикации из подключённых источников. Обновляется автоматически.</p>
+      <header className="mb-4 relative z-10">
+        <div className="flex items-start justify-between">
+          <div className="hidden md:block">
+            <h1 className="text-2xl font-semibold">Лента</h1>
+            <p className="text-sm text-[var(--muted)] mb-4">Публикации из подключённых источников. Обновляется автоматически.</p>
+          </div>
+          
+          <div className="absolute right-0 top-0 md:static flex flex-col items-end">
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] rounded-md transition-colors"
+              title="Настройки ленты"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+            
+            {showSettings && (
+              <div className="absolute right-0 top-8 w-60 bg-[var(--card)] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between group relative">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={hideAds}
+                      onChange={toggleHideAds}
+                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                    />
+                    Отключить рекламу
+                  </label>
+                  
+                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+                    </svg>
+                  </div>
+                  
+                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full right-0 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
+                    Отключение постов с рекламой и рекламными интеграциями.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="flex gap-3 overflow-x-auto pt-[4.75rem] md:pt-3 px-2 pb-3 scrollbar-hide">
           {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
@@ -182,7 +239,14 @@ export default function FeedPage() {
       ) : (
         <>
           <ul className="space-y-4">
-            {posts.map((post) => (
+            {posts.filter(post => {
+              if (!hideAds) return true;
+              const textLower = post.raw_text ? post.raw_text.toLowerCase() : "";
+              if (textLower.includes("#реклама") || textLower.includes("erid=") || textLower.includes("реклама. ооо")) return false;
+              // TO-DO: Если на бэкенде появится ИИ-флаг "is_ad", можно опираться на него:
+              // if (post.is_ad) return false;
+              return true;
+            }).map((post) => (
               <li key={post.id}>
                 <PostCard
                   post={post}

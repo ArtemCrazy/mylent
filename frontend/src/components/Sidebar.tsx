@@ -84,8 +84,10 @@ export function Sidebar() {
   const pathname = usePathname();
   const [hasToken, setHasToken] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setHasToken(!!(typeof window !== "undefined" && localStorage.getItem("token")));
   }, [pathname]);
 
@@ -111,9 +113,9 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-2 border-t border-[var(--border)] shrink-0 flex items-center justify-between">
+      <div className="p-2 border-t border-[var(--border)] shrink-0 flex items-center justify-between min-h-[52px]">
         <NavLink href={profileNav.href} label={profileNav.label} icon={profileNav.icon} pathname={pathname} onClick={() => setOpen(false)} />
-        {pathname !== "/login" && (
+        {mounted && pathname !== "/login" && (
           hasToken ? (
             <button
               type="button"
