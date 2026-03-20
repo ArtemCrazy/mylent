@@ -253,7 +253,8 @@ async def list_digests(
     if config_id:
         q = q.where(Digest.config_id == config_id)
     result = await db.execute(q)
-    return list(result.scalars().all())
+    digests = list(result.scalars().all())
+    return [_digest_to_response(d) for d in digests]
 
 
 @router.get("/{digest_id}", response_model=DigestResponse)
