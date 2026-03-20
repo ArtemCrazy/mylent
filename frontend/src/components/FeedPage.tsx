@@ -21,7 +21,6 @@ export default function FeedPage() {
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
   const knownIdsRef = useRef<Set<number>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
