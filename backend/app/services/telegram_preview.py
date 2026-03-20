@@ -3,6 +3,9 @@ import base64
 import os
 import asyncio
 import logging
+import urllib.request
+import urllib.error
+import re
 from io import BytesIO
 from typing import Any
 
@@ -56,7 +59,7 @@ async def get_channel_public_info(username: str) -> dict[str, Any]:
 
 async def _get_info_impl(username: str) -> dict[str, Any]:
     """
-    Фактическая реализация проверки канала (Telethon).
+    Фактическая реализация проверки канала (Telethon + HTTP HTML Fallback).
     """
     username = _normalize_username(username)
     result: dict[str, Any] = {"has_public_link": False, "avatar_base64": None}
@@ -64,6 +67,32 @@ async def _get_info_impl(username: str) -> dict[str, Any]:
         return result
     if _is_invite_link(username):
         return result
+        
+    # 1. HTTP Scrape fallback (Bypasses Telethon SQLite lock entirely for public channels)
+    try:
+        def fetch_html_avatar():
+            url = f"https://t.me/{username}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req, timeout=5.0) as response:
+                html = response.read().decode('utf-8', errors='ignore')
+                match = re.search(r'<meta property="og:image" content="(https://[^"]+)"', html)
+                if match:
+                    img_url = match.group(1)
+                    if "t_logo" not in img_url.lower():  # Игнорируем стандартное лого Telegram
+                        img_req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
+                        with urllib.request.urlopen(img_req, timeout=5.0) as img_resp:
+                            return base64.b64encode(img_resp.read()).decode("ascii")
+            return None
+
+        avatar_b64 = await asyncio.to_thread(fetch_html_avatar)
+        if avatar_b64:
+            result["avatar_base64"] = avatar_b64
+            result["has_public_link"] = True
+            return result
+    except Exception as e:
+        logger.warning(f"Fast HTTP avatar fetch failed for {username}: {repr(e)}")
+
+    # 2. Если не вышло (например приватный канал), пробуем Telethon
     settings = get_settings()
     api_id = (settings.telegram_api_id or "").strip()
     api_hash = (settings.telegram_api_hash or "").strip()
