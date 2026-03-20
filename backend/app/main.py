@@ -71,6 +71,21 @@ async def _ensure_auto_setup():
                         show_in_feed=True,
                     )
                     db.add(src)
+        # Автоматическое добавление демо-источника RSS (Habr)
+        r = await db.execute(select(Source).where(Source.type == "rss", Source.slug == "habr"))
+        if r.scalars().first() is None:
+            src = Source(
+                type="rss",
+                title="Хабр: Лучшее за сутки",
+                slug="habr",
+                category="IT",
+                url="https://habr.com/ru/rss/best/daily/?fl=ru",
+                config_json=json.dumps({"rss_url": "https://habr.com/ru/rss/best/daily/?fl=ru"}),
+                is_active=True,
+                show_in_feed=True,
+            )
+            db.add(src)
+
         await db.commit()
 
 

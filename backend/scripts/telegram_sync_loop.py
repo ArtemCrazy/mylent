@@ -41,6 +41,11 @@ def main() -> None:
                 cwd=_backend_dir,
                 check=False,
             )
+            subprocess.run(
+                [python, "-m", "scripts.rss_sync"],
+                cwd=_backend_dir,
+                check=False,
+            )
         except KeyboardInterrupt:
             break
 
