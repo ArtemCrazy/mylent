@@ -268,7 +268,7 @@ export default function FeedPage() {
         
         <p className="text-sm text-[var(--muted)] mb-4 mt-1">Публикации из подключённых источников. Обновляется автоматически.</p>
 
-        <div className={`flex gap-3 overflow-x-auto w-full pb-3 scrollbar-hide pt-[6rem] md:pt-3 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)] px-4 -mx-4 md:px-0 md:mx-0`}>
+        <div className={`flex gap-3 overflow-x-auto max-w-full pb-3 scrollbar-hide pt-[6rem] md:pt-3 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]`}>
           {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
             
