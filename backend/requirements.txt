@@ -34,3 +34,8 @@ redis==5.0.1
 
 # Logging & env
 python-dotenv==1.0.1
+
+# 3rd Party integrations
+feedparser==6.0.11
+beautifulsoup4==4.12.3
+httpx==0.27.0

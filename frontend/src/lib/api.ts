@@ -178,6 +178,13 @@ export const api = {
         body: JSON.stringify({ phone, code, ...(password ? { password } : {}) }),
       }, FETCH_TIMEOUT_LONG_MS),
   },
+  apps: {
+    getSettings: () => request<Record<string, any>>("/apps/settings"),
+    footballFixtures: (date?: string) =>
+      request<any>(`/apps/football/fixtures${date ? `?date=${date}` : ""}`),
+    updateSettings: (updates: Record<string, any>) =>
+      request<any>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
+  },
 };
 
 export interface Source {
