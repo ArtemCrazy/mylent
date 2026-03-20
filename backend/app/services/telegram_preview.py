@@ -1,6 +1,7 @@
 """Превью канала Telegram: аватар по username. Требует существующую сессию (после telegram_sync)."""
 import base64
 import os
+import asyncio
 from io import BytesIO
 from typing import Any
 
@@ -39,7 +40,17 @@ def entity_has_public_link(entity: Any) -> bool:
 async def get_channel_public_info(username: str) -> dict[str, Any]:
     """
     Проверяет канал и возвращает has_public_link и avatar_base64.
-    Каналы/чаты без публичной ссылки (только инвайт) — парсить нельзя, has_public_link=False.
+    Оборачивает _get_info_impl в таймаут, чтобы не зависать при блокировке БД Telethon.
+    """
+    try:
+        return await asyncio.wait_for(_get_info_impl(username), timeout=5.0)
+    except (asyncio.TimeoutError, Exception) as e:
+        # Если не вышло (таймаут или ошибка), предполагаем, что добавлять можно (нет запрета)
+        return {"has_public_link": True, "avatar_base64": None}
+
+async def _get_info_impl(username: str) -> dict[str, Any]:
+    """
+    Фактическая реализация проверки канала (Telethon).
     """
     username = _normalize_username(username)
     result: dict[str, Any] = {"has_public_link": False, "avatar_base64": None}
@@ -84,9 +95,10 @@ async def get_channel_public_info(username: str) -> dict[str, Any]:
     except Exception:
         # Не удалось подключиться или получить entity — считаем публичным
         result["has_public_link"] = True
-        return result
     finally:
         await client.disconnect()
+    
+    return result
 
 
 async def get_channel_avatar_base64(username: str) -> str | None:
