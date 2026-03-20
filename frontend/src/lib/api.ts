@@ -179,10 +179,15 @@ export const api = {
       }, FETCH_TIMEOUT_LONG_MS),
   },
   apps: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSettings: () => request<Record<string, any>>("/apps/settings"),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     footballFixtures: (date?: string) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       request<any>(`/apps/football/fixtures${date ? `?date=${date}` : ""}`),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateSettings: (updates: Record<string, any>) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       request<any>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
   },
 };
