@@ -122,7 +122,16 @@ function CategorySelect({
   );
 }
 
+const PREDEFINED_SITES = [
+  { title: "РИА Новости", slug: "ria", category: "news", url: "https://ria.ru/", rss_url: "https://ria.ru/export/rss2/index.xml", icon: "📰" },
+  { title: "РБК", slug: "rbc", category: "news", url: "https://www.rbc.ru/", rss_url: "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", icon: "📊" },
+  { title: "Lenta.ru", slug: "lenta", category: "news", url: "https://lenta.ru/", rss_url: "https://lenta.ru/rss/news", icon: "🗞️" },
+  { title: "ТАСС", slug: "tass", category: "news", url: "https://tass.ru/", rss_url: "https://tass.ru/feed", icon: "🌐" },
+  { title: "Ведомости", slug: "vedomosti", category: "news", url: "https://www.vedomosti.ru/", rss_url: "https://www.vedomosti.ru/info/rss", icon: "📈" },
+];
+
 export default function SourcesPage() {
+  const [tab, setTab] = useState<"telegram" | "sites">("telegram");
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +147,7 @@ export default function SourcesPage() {
   const [editCategory, setEditCategory] = useState("");
   const [editShowInFeed, setEditShowInFeed] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [addingSiteSlug, setAddingSiteSlug] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [hasPublicLink, setHasPublicLink] = useState<boolean | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
@@ -230,6 +240,26 @@ export default function SourcesPage() {
     }
   }
 
+  async function handleAddSite(site: typeof PREDEFINED_SITES[0]) {
+    setAddingSiteSlug(site.slug);
+    try {
+      await api.sources.create({
+        type: "rss",
+        title: site.title,
+        slug: site.slug,
+        category: site.category,
+        url: site.url,
+        config_json: JSON.stringify({ rss_url: site.rss_url }),
+        show_in_feed: true,
+      });
+      loadSources();
+    } catch (err) {
+      alert("Ошибка добавления: " + (err instanceof Error ? err.message : ""));
+    } finally {
+      setAddingSiteSlug(null);
+    }
+  }
+
   function startEdit(s: Source) {
     setEditingId(s.id);
     setEditTitle(s.title);
@@ -269,21 +299,42 @@ export default function SourcesPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold">Источники</h1>
-          <p className="text-sm text-[var(--muted)]">Подключённые каналы и ленты. Чтобы посты попали в ленту, запустите импорт из папки backend: <code className="text-xs bg-[var(--card)] px-1 rounded">python -m scripts.telegram_sync</code></p>
+      <header className="mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Источники</h1>
+            <p className="text-sm text-[var(--muted)]">Подключённые каналы и новостные ленты.</p>
+          </div>
+          {tab === "telegram" && (
+            <button
+              type="button"
+              onClick={() => setShowForm(!showForm)}
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              {showForm ? "Отмена" : "+ Добавить источник"}
+            </button>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          {showForm ? "Отмена" : "+ Добавить источник"}
-        </button>
+        
+        <div className="flex gap-1 border-b border-[var(--border)]">
+          <button 
+            type="button" 
+            onClick={() => setTab("telegram")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "telegram" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+          >
+            Telegram
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setTab("sites")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === "sites" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+          >
+            Сайты (RSS)
+          </button>
+        </div>
       </header>
 
-      {showForm && (
+      {tab === "telegram" && showForm && (
         <form onSubmit={handleAddSource} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 mb-6 space-y-4">
           <h2 className="font-medium">Telegram-канал</h2>
           <div>
@@ -353,15 +404,156 @@ export default function SourcesPage() {
             <div key={i} className="h-20 rounded-xl bg-[var(--card)] animate-pulse" />
           ))}
         </div>
-      ) : sources.length === 0 ? (
+      ) : tab === "sites" ? (
+        <div className="space-y-6">
+          <section>
+            <h2 className="text-sm font-medium text-[var(--muted)] mb-3 uppercase tracking-wide">
+              Каталог сайтов
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {PREDEFINED_SITES.map((site) => {
+                const addedSource = sources.find((s) => s.slug === site.slug);
+                return (
+                  <div key={site.slug} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex gap-3 items-center">
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--card-hover)] flex items-center justify-center text-xl shadow-sm border border-[var(--border)]">
+                      {site.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{site.title}</div>
+                      <a href={site.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--muted)] truncate hover:text-[var(--accent)]">
+                        {site.url.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                    {addedSource ? (
+                      <button
+                        title="Удалить"
+                        type="button"
+                        onClick={() => handleDelete(addedSource)}
+                        className="shrink-0 px-2.5 py-1 text-xs font-medium rounded-md bg-green-500/10 text-green-500 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                      >
+                        ✓ Добавлено
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={addingSiteSlug === site.slug}
+                        onClick={() => handleAddSite(site)}
+                        className="shrink-0 px-2.5 py-1 text-xs font-medium rounded-md bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-50"
+                      >
+                        {addingSiteSlug === site.slug ? "..." : "Добавить"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs text-[var(--muted)]">Новостные ленты RSS скачиваются и проверяются бекендом раз в 10 минут (вместе с Telegram постами).</p>
+          </section>
+          
+          {sources.filter(s => s.type === "rss").length > 0 && (
+            <section className="pt-4 border-t border-[var(--border)]">
+              <h2 className="text-sm font-medium text-[var(--muted)] mb-3 uppercase tracking-wide">
+                Подключённые ленты
+              </h2>
+              <ul className="space-y-3">
+                {sources.filter(s => s.type === "rss").map((s) => (
+                  <li
+                    key={s.id}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 pt-4 pb-4 pr-6 flex items-start gap-4"
+                  >
+                    <div className="w-12 h-12 shrink-0 rounded-full bg-[var(--card-hover)] overflow-hidden flex items-center justify-center text-[var(--muted)] text-lg">
+                      {PREDEFINED_SITES.find(ps => ps.slug === s.slug)?.icon || "🌐"}
+                    </div>
+                    <div className="min-w-0 flex-1 pr-4">
+                      {editingId === s.id ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] font-medium"
+                            placeholder="Название"
+                          />
+                          <div>
+                            <span className="block text-xs text-[var(--muted)] mb-1">Категория</span>
+                            <CategorySelect value={editCategory} onChange={setEditCategory} />
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={editShowInFeed}
+                              onChange={(e) => setEditShowInFeed(e.target.checked)}
+                              className="w-4 h-4 accent-[var(--accent)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">Выводить в ленте</span>
+                          </label>
+                          <div className="flex gap-2 flex-wrap items-center">
+                            <button
+                              type="button"
+                              onClick={handleSaveEdit}
+                              className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                            >
+                              Сохранить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--card-hover)]"
+                            >
+                              Отмена
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium">{s.title}</span>
+                          <span className="text-xs text-[var(--muted)] ml-2">({getCategoryLabel(s.category)})</span>
+                          {!s.show_in_feed && (
+                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">скрыт из ленты</span>
+                          )}
+                          {s.url && (
+                            <a href={s.url} target="_blank" rel="noopener noreferrer" className="block text-sm text-[var(--accent)] hover:underline mt-0.5">
+                              {s.url}
+                            </a>
+                          )}
+                          <p className="text-sm text-[var(--muted)] mt-1">Синхронизация: {formatDate(s.last_synced_at)}</p>
+                        </>
+                      )}
+                    </div>
+                    {editingId !== s.id && (
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end min-w-[140px]">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(s)}
+                          className="text-xs text-[var(--accent)] hover:underline"
+                        >
+                          Редактировать
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(s)}
+                          disabled={togglingId === s.id}
+                          className={`text-xs px-2 py-1 rounded ${s.is_active ? "bg-green-500/20 text-green-400 hover:bg-green-500/30" : "bg-[var(--card-hover)] text-[var(--muted)] hover:bg-[var(--border)]"}`}
+                        >
+                          {togglingId === s.id ? "…" : s.is_active ? "Вкл" : "Выкл"}
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      ) : sources.filter(s => s.type === "telegram").length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center text-[var(--muted)]">
           <p className="mb-2">Пока нет источников.</p>
-          <p className="text-sm">Нажмите «Добавить источник» выше и укажите Telegram-канал. После этого нужно будет запустить импорт (worker с Telethon — в разработке).</p>
+          <p className="text-sm">Нажмите «Добавить источник» выше и укажите Telegram-канал.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {CATEGORY_ORDER.map((catKey) => {
-            const items = sources.filter((s) => (s.category || "other") === catKey);
+            const items = sources.filter((s) => s.type === "telegram" && (s.category || "other") === catKey);
             if (items.length === 0) return null;
             return (
               <section key={catKey}>
