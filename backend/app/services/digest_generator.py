@@ -28,6 +28,19 @@ DEFAULT_PROMPT = """Ты — AI-редактор новостной ленты. 
 
 Формат ответа — Markdown. Будь лаконичен и информативен. Не выдумывай информацию."""
 
+HIDDEN_STYLE_INSTRUCTIONS = """
+=== ВАЖНО: ПРАВИЛА ВИЗУАЛЬНОГО ОФОРМЛЕНИЯ И СТИЛИСТИКИ ===
+Твоя главная задача — выдавать текст с идеальным визуальным форматированием Markdown, чтобы его было удобно читать:
+1. Используй заголовки (## 🚀 Название категории) для разделения на тематические блоки.
+2. Каждую новость начинай с буллита (-).
+3. Суть новости и самые важные слова выделяй **жирным шрифтом** для быстрого чтения по диагонали.
+4. Названия компаний, сервисов или имена выделяй *курсивом* или жирным.
+5. Обязательно соблюдай пустые строки между абзацами и новостями для "воздуха".
+6. В конце каждой мысли/новости ставь ссылки на оригиналы в строгом формате: (Источники: [#id1], [#id2]).
+7. Пиши в стиле качественного современного Telegram-канала: ёмко, по делу, без "воды", профессионально, но не канцелярским языком.
+==========================================================
+"""
+
 
 async def generate_digest(
     db: AsyncSession,
@@ -50,14 +63,15 @@ async def generate_digest(
             period_end = now
         if period_start is None:
             period_start = period_end - timedelta(hours=period_hours)
-        system_prompt = config.prompt or DEFAULT_PROMPT
+        user_prompt_base = config.prompt or DEFAULT_PROMPT
+        system_prompt = f"{HIDDEN_STYLE_INSTRUCTIONS}\n\n{user_prompt_base}"
         digest_type = config.name
     else:
         if period_end is None:
             period_end = now
         if period_start is None:
             period_start = period_end - timedelta(hours=8)
-        system_prompt = DEFAULT_PROMPT
+        system_prompt = f"{HIDDEN_STYLE_INSTRUCTIONS}\n\n{DEFAULT_PROMPT}"
 
     # Build post query
     stmt = (
