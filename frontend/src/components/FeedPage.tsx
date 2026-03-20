@@ -66,17 +66,7 @@ export default function FeedPage() {
     localStorage.setItem("collapseCategories", String(newVal));
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setShowSettings(false);
-      }
-    };
-    if (showSettings) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showSettings]);
+
 
   // В ленте показываем только категории, у которых есть добавленные источники (show_in_feed)
   useEffect(() => {
@@ -225,10 +215,10 @@ export default function FeedPage() {
         <div className="flex items-center gap-0.5">
           <h1 className="text-2xl font-bold">Лента</h1>
           
-          <div className="relative z-[100]" ref={settingsRef}>
+          <div className="relative z-10">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-1 mt-1.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              className={`p-1 mt-1.5 transition-colors ${showSettings ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
               title="Настройки ленты"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -236,102 +226,72 @@ export default function FeedPage() {
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </button>
-            
-            {showSettings && (
-              <div className="absolute left-0 top-8 w-64 bg-[var(--card)] border border-[var(--border)] shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2 flex flex-col gap-3 font-normal">
-                <div className="flex items-center justify-between group relative">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={hideDuplicates}
-                      onChange={toggleHideDuplicates}
-                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
-                    />
-                    Скрывать дубли
-                  </label>
-                  
-                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-                    </svg>
-                  </div>
-                  
-                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 right-0 md:left-0 md:right-auto md:mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
-                    Скрывает потоковые клоны новостей (алгоритм математически находит посты с одинаковым смыслом).
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between group relative">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={hideAds}
-                      onChange={toggleHideAds}
-                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
-                    />
-                    Отключить рекламу
-                  </label>
-                  
-                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-                    </svg>
-                  </div>
-                  
-                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full right-0 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
-                    Отключение постов с рекламой и рекламными интеграциями.
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between group relative">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
-                     <input
-                      type="checkbox"
-                      checked={childMode}
-                      onChange={toggleChildMode}
-                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
-                    />
-                    Детский режим
-                  </label>
-                  
-                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-                    </svg>
-                  </div>
-                  
-                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 right-0 md:left-0 md:right-auto md:mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
-                     Скрывает из ленты новости, содержащие нецензурную лексику.
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between group relative">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={collapseCategories}
-                      onChange={toggleCollapseCategories}
-                      className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
-                    />
-                    Свернуть категории
-                  </label>
-                  
-                  <div className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-help p-1">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-                    </svg>
-                  </div>
-                  
-                  <div className="absolute invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all bottom-full pt-2 left-0 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none z-50">
-                    Оставляет только названия категорий, убирая большие иконки.
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
         
         <p className="text-sm text-[var(--muted)] mb-4 mt-1">Публикации из подключённых источников. Обновляется автоматически.</p>
+
+        {showSettings && (
+          <div className="mb-6 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden animate-in slide-in-from-top-4 fade-in duration-200">
+            <div className="absolute inset-0 bg-[var(--accent)] opacity-[0.03] pointer-events-none"></div>
+            
+            <div className="relative z-10 grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5 group">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors w-fit">
+                  <input
+                    type="checkbox"
+                    checked={hideDuplicates}
+                    onChange={toggleHideDuplicates}
+                    className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  Скрывать дубли
+                </label>
+                <div className="text-xs text-[var(--muted)]">Скрывает потоковые клоны новостей (использует встроенную ML-модель для сравнения смысла).</div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 group">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors w-fit">
+                  <input
+                    type="checkbox"
+                    checked={hideAds}
+                    onChange={toggleHideAds}
+                    className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  Отключить рекламу
+                </label>
+                <div className="text-xs text-[var(--muted)]">Автоматическое отключение постов с рекламой и интеграциями.</div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 group">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors w-fit">
+                  <input
+                    type="checkbox"
+                    checked={childMode}
+                    onChange={toggleChildMode}
+                    className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  Детский режим
+                </label>
+                <div className="text-xs text-[var(--muted)]">Скрывает из ленты новости, содержащие нецензурную лексику или шок-контент.</div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 group">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-[var(--accent)] transition-colors w-fit">
+                  <input
+                    type="checkbox"
+                    checked={collapseCategories}
+                    onChange={toggleCollapseCategories}
+                    className="rounded border-[var(--border)] bg-[var(--background)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  Свернуть категории
+                </label>
+                <div className="text-xs text-[var(--muted)]">Компактное отображение слайдера категорий без гигантских иконок.</div>
+              </div>
+            </div>
+          </div>
+        )}
+            
+
 
         <div 
           ref={scrollRef}
