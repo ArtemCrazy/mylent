@@ -63,21 +63,14 @@ async def detect_and_mark_duplicate(db: AsyncSession, post: Post) -> None:
 
     post.embedding_json = json.dumps(new_emb)
 
-    # 2. Ищем последние 50 постов
+    # 2. Ищем последние 50 постов вообще без привязки к категории, 
+    # чтобы находить дубли даже между СМИ разной направленности
     if not post.source_id:
         return
-        
-    src_res = await db.execute(select(Source.category).where(Source.id == post.source_id))
-    cat = src_res.scalar_one_or_none()
 
     stmt = select(Post).join(Source, Post.source_id == Source.id)
     if post.id:
         stmt = stmt.where(Post.id != post.id)
-
-    if cat:
-        stmt = stmt.where(Source.category == cat)
-    else:
-        stmt = stmt.where(Post.source_id == post.source_id)
 
     stmt = stmt.order_by(Post.published_at.desc()).limit(50)
     
@@ -111,7 +104,7 @@ async def detect_and_mark_duplicate(db: AsyncSession, post: Post) -> None:
         except Exception:
             pass
 
-    # 3. Если смысл совпадает на 85%+, маркируем как дубль
-    if best_sim > 0.85 and best_dup_id:
+    # 3. Если смысл совпадает на 65%+, маркируем как дубль
+    if best_sim > 0.65 and best_dup_id:
         post.duplicate_group_id = best_dup_id
         logger.info(f"Post {post.external_id} marked as duplicate of {best_dup_id} (sim: {best_sim:.2f})")
