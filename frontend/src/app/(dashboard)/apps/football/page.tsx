@@ -23,31 +23,34 @@ const RU_TEAMS: Record<string, string> = {
 function t(name: string) { return RU_TEAMS[name] || name; }
 
 const LEAGUES = [
-  { id: 39, name: "Английская Премьер-лига (АПЛ)", short: "АПЛ", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { id: 235, name: "Российская Премьер-лига (РПЛ)", short: "РПЛ", flag: "🇷🇺" },
-  { id: 2, name: "Лига Чемпионов УЕФА", short: "ЛЧ", flag: "🇪🇺" },
+  { id: "EPL", name: "Английская Премьер-лига", short: "АПЛ", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { id: "RPL", name: "Российская Премьер-лига", short: "РПЛ", flag: "🇷🇺" },
+  { id: "UCL", name: "Лига Чемпионов УЕФА", short: "ЛЧ", flag: "🇪🇺" },
+  { id: "ALL", name: "Остальные турниры", short: "Другие", flag: "🌍" },
 ];
 
-function statusTranslate(status: string, elapsed: number | null): string {
-  switch(status) {
-    case "NS": return "Не начался";
-    case "1H": return `${elapsed}' (1 тайм)`;
-    case "HT": return "Перерыв";
-    case "2H": return `${elapsed}' (2 тайм)`;
-    case "FT": return "Завершен";
-    case "PEN": return "Пенальти";
-    case "AET": return "После доп. вр.";
-    case "CANC": return "Отменен";
-    case "PST": return "Перенесен";
-    default: return status;
-  }
+function detectLeague(m: any): string {
+  const tName = (m.tournamentName || m.competition || "").toLowerCase();
+  const tId = m.tournamentTemplateId || "";
+  if (tName.includes("england") && tName.includes("premier league")) return "EPL";
+  if (tName.includes("russia") && (tName.includes("premier league") || tName.includes("rpl"))) return "RPL";
+  if (tName.includes("champions league")) return "UCL";
+  return "ALL";
+}
+
+function statusTranslate(stageId: number, gameTime: string): string {
+  if (stageId === 1) return gameTime || "Не начался"; // gameTime often has "18:00" if scheduled
+  if (stageId === 38) return "Перерыв";
+  if (stageId === 3 || stageId === 242) return "Завершен";
+  if ([2, 12, 13, 6, 7].includes(stageId)) return `${gameTime || "Live"}'`;
+  return gameTime || "—";
 }
 
 export default function FootballApp() {
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [enabledLeagues, setEnabledLeagues] = useState<number[]>([]);
+  const [enabledLeagues, setEnabledLeagues] = useState<string[]>([]);
   const [savingConfig, setSavingConfig] = useState(false);
 
   useEffect(() => {
@@ -60,14 +63,14 @@ export default function FootballApp() {
       setError("");
       
       const settings = await api.apps.getSettings();
-      const userLeagues = settings.football_leagues || [39, 235];
+      const userLeagues = settings.football_leagues || ["EPL", "RPL"];
       setEnabledLeagues(userLeagues);
       
       const res = await api.apps.footballFixtures();
-      setFixtures(res);
+      setFixtures(Array.isArray(res) ? res : []);
     } catch (e: any) {
-      if (e.message?.includes("API_FOOTBALL_KEY")) {
-         setError("Ключ API-Football не настроен на сервере.");
+      if (e.message?.includes("SPORTDB_API_KEY")) {
+         setError("Ключ SPORTDB_API_KEY не настроен на сервере.");
       } else {
          setError(e.message || "Ошибка загрузки данных");
       }
@@ -76,7 +79,7 @@ export default function FootballApp() {
     }
   }
 
-  async function toggleLeague(id: number) {
+  async function toggleLeague(id: string) {
     setSavingConfig(true);
     const newArr = enabledLeagues.includes(id) 
       ? enabledLeagues.filter(x => x !== id)
@@ -92,7 +95,7 @@ export default function FootballApp() {
     }
   }
 
-  const activeFixtures = fixtures.filter(f => enabledLeagues.includes(f.league.id));
+  const activeFixtures = fixtures.filter(f => enabledLeagues.includes(detectLeague(f)));
 
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in relative pb-20">
@@ -139,7 +142,7 @@ export default function FootballApp() {
       ) : (
         <div className="space-y-6">
           {LEAGUES.filter(l => enabledLeagues.includes(l.id)).map(league => {
-            const matches = activeFixtures.filter(f => f.league.id === league.id);
+            const matches = activeFixtures.filter(f => detectLeague(f) === league.id);
             if (matches.length === 0) return null;
             
             return (
@@ -148,35 +151,35 @@ export default function FootballApp() {
                   <span className="text-xl">{league.flag}</span> {league.name}
                 </div>
                 <div className="divide-y divide-[var(--border)]">
-                  {matches.map(m => {
-                    const statusStr = m.fixture.status.short;
-                    const isLive = ["1H", "2H", "HT", "ET", "P"].includes(statusStr);
-                    const time = new Date(m.fixture.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                  {matches.map((m: any) => {
+                    const statusStr = statusTranslate(m.eventStageId, m.gameTime);
+                    const isLive = [2, 12, 13, 6, 7].includes(m.eventStageId);
+                    // Flashscore data usually returns score split or combined, lets try both
+                    const homeG = m.homeScore ?? "-";
+                    const awayG = m.awayScore ?? "-";
                     
                     return (
-                      <div key={m.fixture.id} className="p-4 flex items-center justify-between group hover:bg-[var(--card-hover)]/30 transition-colors">
+                      <div key={m.eventId} className="p-4 flex items-center justify-between group hover:bg-[var(--card-hover)]/30 transition-colors">
                         
                         <div className="w-16 text-center shrink-0">
                           {isLive ? (
-                            <div className="text-xs font-bold text-red-500 animate-pulse">{statusTranslate(statusStr, m.fixture.status.elapsed)}</div>
+                            <div className="text-xs font-bold text-red-500 animate-pulse">{statusStr}</div>
                           ) : (
-                            <div className="text-sm text-[var(--muted)] font-medium">{statusStr === "NS" ? time : statusTranslate(statusStr, null)}</div>
+                            <div className="text-sm text-[var(--muted)] font-medium">{statusStr}</div>
                           )}
                         </div>
                         
                         <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 px-4">
                           <div className="flex-1 flex items-center justify-end gap-3 w-full sm:w-auto">
-                            <span className="font-medium text-right line-clamp-1">{t(m.teams.home.name)}</span>
-                            <img src={m.teams.home.logo} alt="" className="w-6 h-6 object-contain" />
+                            <span className="font-medium text-right line-clamp-1">{t(m.homeName)}</span>
                           </div>
                           
                           <div className="font-bold text-xl tracking-widest shrink-0 w-[60px] text-center px-2 bg-[var(--card-hover)] rounded-md py-1 shadow-inner border border-[var(--border)]">
-                            {statusStr === "NS" ? "- : -" : `${m.goals.home ?? 0} : ${m.goals.away ?? 0}`}
+                            {homeG} : {awayG}
                           </div>
                           
                           <div className="flex-1 flex items-center justify-start gap-3 w-full sm:w-auto">
-                            <img src={m.teams.away.logo} alt="" className="w-6 h-6 object-contain" />
-                            <span className="font-medium text-left line-clamp-1">{t(m.teams.away.name)}</span>
+                            <span className="font-medium text-left line-clamp-1">{t(m.awayName)}</span>
                           </div>
                         </div>
 

@@ -16,84 +16,52 @@ _football_cache: dict = {
     "data": None
 }
 
-API_FOOTBALL_HOST = "v3.football.api-sports.io"
-API_FOOTBALL_KEY = os.environ.get("API_FOOTBALL_KEY")
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY")
+SPORTDB_API_KEY = os.environ.get("SPORTDB_API_KEY")
 
 @router.get("/football/fixtures")
 async def get_football_fixtures(date: str | None = None):
     """
-    Получает матчи на указанную дату (YYYY-MM-DD). 
-    По умолчанию на сегодня.
-    Возвращает закешированный ответ в течение 5 минут.
+    Получает матчи.
+    Возвращает закешированный ответ в течение 3 минут.
     """
-    if not API_FOOTBALL_KEY and not RAPIDAPI_KEY:
+    if not SPORTDB_API_KEY:
         raise HTTPException(
             status_code=503, 
-            detail="API_FOOTBALL_KEY or RAPIDAPI_KEY is not configured in .env"
+            detail="SPORTDB_API_KEY is not configured in .env"
         )
 
     now = datetime.utcnow()
     # If we have valid cache, return it
     if _football_cache["timestamp"] and _football_cache["data"]:
         diff = (now - _football_cache["timestamp"]).total_seconds()
-        if dict(Date=date) == _football_cache.get("args") and diff < _CACHE_TIMEOUT_SECONDS:
+        if diff < (3 * 60):
             return _football_cache["data"]
 
-    target_date = date or now.strftime("%Y-%m-%d")
-    
-    # Английская премьер лига (39) и РПЛ (235)
-    # Позволяем запрашивать несколько лиг одновременно (league=39-235 не работает, 
-    # в v3 api нужно либо скачивать все fixtures и фильтровать, либо для конкретной лиги.
-    # Но проще запросить timezone и date для нужных линдш.
-    # Actually, v3 permits filtering by a single league. If we want multiple, we can fetch all for the date, 
-    # or make multiple requests. Fetching all matches for a date takes 1 API call, but parsing is heavy.
-    # Let's do 2 requests: one for 39 and one for 235, or just fetch all for date and filter on backend.
-    
-    # We will do 2 requests (since there are 2 leagues) to save parsing heavy "all matches" response
-    # But wait! A single request for "date={date}" fetches EVERYTHING nicely and uses 1 credit.
-    
-    allowed_leagues = {39, 235, 2, 3}  # 2=UCL, 3=Europa
-    
-    if RAPIDAPI_KEY:
-        base_url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
-        headers = {
-            "x-rapidapi-key": RAPIDAPI_KEY,
-            "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
-        }
-    else:
-        base_url = f"https://{API_FOOTBALL_HOST}/fixtures"
-        headers = {
-            "x-apisports-key": API_FOOTBALL_KEY,
-            "x-apisports-host": API_FOOTBALL_HOST
-        }
+    headers = {
+        "X-API-Key": SPORTDB_API_KEY
+    }
     
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                base_url,
-                params={"date": target_date, "timezone": "Europe/Moscow"},
+                "https://api.sportdb.dev/api/flashscore/football/live",
+                params={"tz": 3, "offset": 0},
                 headers=headers,
-                timeout=10.0
+                timeout=12.0
             )
             resp.raise_for_status()
             payload = resp.json()
             
-            if payload.get("errors"):
+            if "errors" in payload:
                 raise Exception(str(payload["errors"]))
                 
-            all_fixtures = payload.get("response", [])
-            # Фильтруем только нужные лиги
-            filtered = [f for f in all_fixtures if f["league"]["id"] in allowed_leagues]
-            
             _football_cache["timestamp"] = now
-            _football_cache["args"] = {"Date": date}
-            _football_cache["data"] = filtered
+            _football_cache["data"] = payload
             
-            return filtered
+            return payload
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch football data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch sportdb data: {str(e)}")
 
 
 @router.get("/settings")
