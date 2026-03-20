@@ -157,10 +157,10 @@ export default function DigestsPage() {
     <div className="p-4 md:p-6 max-w-3xl mx-auto pb-20">
       <div className="mb-6 flex flex-col items-start gap-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{showSettings ? "Настройки дайджестов" : "Дайджесты"}</h1>
+          <h1 className="text-2xl font-bold">{showSettings ? "Настройки дайджестов" : "Дайджесты"}</h1>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-1.5 rounded-xl transition-colors ${showSettings ? "bg-[var(--accent)] text-white hover:bg-[var(--accent)]" : "bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)]"}`}
+            className={`p-1.5 transition-colors ${showSettings ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
             title="Настройки"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
