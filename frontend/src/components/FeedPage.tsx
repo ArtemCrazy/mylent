@@ -23,6 +23,12 @@ export default function FeedPage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const dragRef = useRef(false);
+
   const [showSettings, setShowSettings] = useState(false);
   const [hideAds, setHideAds] = useState(false);
   const [childMode, setChildMode] = useState(false);
@@ -168,6 +174,33 @@ export default function FeedPage() {
     return () => observer.disconnect();
   }, [loadMore]);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    dragRef.current = false;
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    if (Math.abs(walk) > 5) {
+      dragRef.current = true;
+    }
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleCategoryClick = (val: string) => {
+    if (dragRef.current) return;
+    setCategory(val);
+  };
+
   if (error) {
     return (
       <div className="p-8">
@@ -268,7 +301,14 @@ export default function FeedPage() {
         
         <p className="text-sm text-[var(--muted)] mb-4 mt-1">Публикации из подключённых источников. Обновляется автоматически.</p>
 
-        <div className={`flex gap-3 overflow-x-auto max-w-full pb-3 scrollbar-hide pt-[6rem] md:pt-3 -mx-2 px-2 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]`}>
+        <div 
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className={`cursor-grab active:cursor-grabbing flex gap-3 overflow-x-auto max-w-full pb-3 scrollbar-hide pt-[6rem] md:pt-3 -mx-2 px-2 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]`}
+        >
           {feedCategories.map((c) => {
             const isActive = (c.value === "" && !category) || category === c.value;
             
@@ -277,7 +317,7 @@ export default function FeedPage() {
                 <button
                   key={c.value || "all"}
                   type="button"
-                  onClick={() => setCategory(c.value)}
+                  onClick={() => handleCategoryClick(c.value)}
                   className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap border ${isActive ? "bg-[var(--accent)] text-white border-transparent shadow-md" : "bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)]"}`}
                 >
                   {c.label}
@@ -289,7 +329,7 @@ export default function FeedPage() {
               <button
                 key={c.value || "all"}
                 type="button"
-                onClick={() => setCategory(c.value)}
+                onClick={() => handleCategoryClick(c.value)}
                 className="flex flex-col items-center gap-1.5 shrink-0 group"
               >
                 <div
