@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, type DigestConfig, type Source } from "@/lib/api";
+import { api, type DigestConfig, type Source, type Digest } from "@/lib/api";
 import { SourcePicker } from "@/components/SourcePicker";
 
 const DEFAULT_PROMPT = `Ты — AI-редактор новостной ленты. Тебе дан список постов из Telegram-каналов за определённый период.
@@ -27,9 +27,17 @@ function formatDate(s: string) {
 
 export default function DigestsPage() {
   const router = useRouter();
+  
+  // Вью мод
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState<"today" | "yesterday" | "week">("today");
+  const [digests, setDigests] = useState<Digest[]>([]);
+  const [loadingDigests, setLoadingDigests] = useState(true);
+
+  // Состояние настроек
   const [configs, setConfigs] = useState<DigestConfig[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
 
@@ -46,8 +54,17 @@ export default function DigestsPage() {
   useEffect(() => {
     Promise.all([api.digestConfigs.list(), api.sources.list()])
       .then(([c, src]) => { setConfigs(c); setSources(src); })
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingConfigs(false));
   }, []);
+
+  useEffect(() => {
+    if (!showSettings) {
+      setLoadingDigests(true);
+      api.digests.list()
+        .then(d => setDigests(d))
+        .finally(() => setLoadingDigests(false));
+    }
+  }, [showSettings]);
 
   async function handleCreate() {
     if (!name.trim() || !prompt.trim()) return;
@@ -82,7 +99,46 @@ export default function DigestsPage() {
     setGeneratingId(null);
   }
 
-  if (loading) {
+  const filteredDigests = useMemo(() => {
+    return digests.filter(d => {
+      const dDate = new Date(d.created_at);
+      const now = new Date();
+      if (activeTab === "today") {
+        const start = new Date(now); start.setHours(0,0,0,0);
+        return dDate >= start;
+      } else if (activeTab === "yesterday") {
+        const start = new Date(now); start.setDate(now.getDate() - 1); start.setHours(0,0,0,0);
+        const end = new Date(now); end.setDate(now.getDate() - 1); end.setHours(23,59,59,999);
+        return dDate >= start && dDate <= end;
+      } else {
+        const start = new Date(now); start.setDate(now.getDate() - 7); start.setHours(0,0,0,0);
+        return dDate >= start;
+      }
+    });
+  }, [digests, activeTab]);
+
+  function renderMarkdown(text: string) {
+    if (!text) return null;
+    return (
+      <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-headings:mt-6 prose-headings:mb-4 prose-a:text-[var(--accent)] prose-a:no-underline hover:prose-a:underline select-text">
+        {text.split('\n').map((line, i) => {
+          const t = line.trim();
+          if (t.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-2 mb-4">{t.replace('# ', '')}</h1>;
+          if (t.startsWith('## ')) return <h2 key={i} className="text-lg font-bold mt-6 mb-3 text-[var(--foreground)]">{t.replace('## ', '')}</h2>;
+          if (t.startsWith('### ')) return <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-[var(--foreground)]">{t.replace('### ', '')}</h3>;
+          if (t === '') return <div key={i} className="h-3" />;
+          const parts = line.split(/(\*\*.*?\*\*)/g);
+          return (
+            <p key={i} className="text-sm md:text-base leading-relaxed text-[var(--foreground)] opacity-90 mb-2">
+              {parts.map((p, j) => p.startsWith('**') && p.endsWith('**') ? <strong key={j} className="text-[var(--foreground)] font-semibold">{p.slice(2, -2)}</strong> : p)}
+            </p>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (loadingConfigs && loadingDigests) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">Дайджесты</h1>
@@ -96,162 +152,213 @@ export default function DigestsPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto pb-20">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-semibold">Дайджесты</h1>
-          <p className="text-sm text-[var(--muted)]">AI-сводки новостей из ваших каналов</p>
+          <h1 className="text-2xl font-semibold">{showSettings ? "Настройки дайджестов" : "Дайджесты"}</h1>
+          <p className="text-sm text-[var(--muted)]">{showSettings ? "Управление генерацией сводок" : "AI-сводки новостей из ваших каналов"}</p>
         </div>
         <button
-          type="button"
-          onClick={() => setShowCreate((v) => !v)}
-          className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+          onClick={() => setShowSettings(!showSettings)}
+          className={`p-2 rounded-xl transition-colors ${showSettings ? "bg-[var(--accent)] text-white" : "bg-[var(--card)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)]"}`}
+          title="Настройки"
         >
-          + Создать
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
         </button>
       </div>
 
-      {/* Create form */}
-      {showCreate && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 mb-6">
-          <h2 className="font-medium mb-3">Новый дайджест</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-[var(--muted)] block mb-1">Название</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Например: Утренний брифинг, Инвестиции за неделю"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
-              />
-            </div>
+      {!showSettings ? (
+        <>
+          <div className="flex gap-2 mb-6 overflow-x-auto scrollbar-hide pb-2">
+            {(["today", "yesterday", "week"] as const).map((period) => (
+              <button
+                key={period}
+                onClick={() => setActiveTab(period)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${activeTab === period ? "bg-[var(--accent)] text-white shadow-md" : "bg-[var(--card)] text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+              >
+                {period === "today" ? "За сегодня" : period === "yesterday" ? "За вчера" : "За неделю"}
+              </button>
+            ))}
+          </div>
 
-            <div>
-              <label className="text-sm text-[var(--muted)] block mb-1">Промпт для AI</label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={6}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] font-mono focus:outline-none focus:border-[var(--accent)] resize-y"
-              />
+          {loadingDigests ? (
+            <div className="flex justify-center p-12">
+              <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
             </div>
+          ) : filteredDigests.length === 0 ? (
+            <div className="text-center p-12 text-[var(--muted)] bg-[var(--card)] rounded-xl border border-[var(--border)]">
+              <span className="text-4xl mb-3 block">📭</span>
+              <p>Дайджестов за этот период нет</p>
+              <p className="text-sm mt-2 opacity-80">Они генерируются автоматически, либо вы можете создать их в настройках.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredDigests.map(digest => (
+                <div key={digest.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 md:p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4 text-[var(--muted)] text-sm border-b border-[var(--border)] pb-4">
+                    <span className="bg-[var(--accent)] text-white text-xs font-bold px-2 py-1 rounded-md">{digest.config_name || "Сводка"}</span>
+                    <span>{formatDate(digest.created_at)}</span>
+                  </div>
+                  {renderMarkdown(digest.summary || "Нет содержимого")}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-medium text-lg text-[var(--foreground)]">Ваши конфигурации</h2>
+            <button
+              type="button"
+              onClick={() => setShowCreate((v) => !v)}
+              className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              {showCreate ? "Закрыть" : "+ Добавить"}
+            </button>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-sm text-[var(--muted)] block mb-1">Расписание</label>
-                <select
-                  value={scheduleType}
-                  onChange={(e) => setScheduleType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
-                >
-                  <option value="manual">Вручную</option>
-                  <option value="daily">Ежедневно</option>
-                  <option value="weekly">Еженедельно (пн)</option>
-                </select>
-              </div>
-              {scheduleType !== "manual" && (
+          {showCreate && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 mb-6 shadow-sm">
+              <h2 className="font-medium mb-3">Новый дайджест</h2>
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-[var(--muted)] block mb-1">Часы UTC</label>
+                  <label className="text-sm text-[var(--muted)] block mb-1">Название</label>
                   <input
-                    value={scheduleHours}
-                    onChange={(e) => setScheduleHours(e.target.value)}
-                    placeholder="8,14,20"
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Например: Утренний брифинг, Инвестиции за неделю"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
-              )}
-              <div>
-                <label className="text-sm text-[var(--muted)] block mb-1">Период (часов)</label>
-                <input
-                  type="number"
-                  value={periodHours}
-                  onChange={(e) => setPeriodHours(Number(e.target.value) || 24)}
-                  min={1}
-                  max={168}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
-                />
-              </div>
-            </div>
 
-            <div>
-              <label className="text-sm text-[var(--muted)] block mb-1">
-                Источники {selectedSources.length > 0 && `(${selectedSources.length})`}
-                <span className="text-xs ml-1">(пусто = все каналы)</span>
-              </label>
-              <SourcePicker sources={sources} selected={selectedSources} onChange={setSelectedSources} />
-            </div>
+                <div>
+                  <label className="text-sm text-[var(--muted)] block mb-1">Промпт для AI</label>
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    rows={6}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm text-[var(--foreground)] font-mono focus:outline-none focus:border-[var(--accent)] resize-y"
+                  />
+                </div>
 
-            {error && (
-              <div className="text-sm text-red-400">{error}</div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleCreate}
-                disabled={creating || !name.trim() || !prompt.trim()}
-                className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
-              >
-                {creating ? "Создаю…" : "Создать"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="px-4 py-2 rounded-lg bg-[var(--background)] text-[var(--muted)] text-sm hover:text-[var(--foreground)]"
-              >
-                Отмена
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Configs list */}
-      {configs.length === 0 && !showCreate ? (
-        <div className="text-center py-12 text-[var(--muted)]">
-          <p className="text-lg mb-2">Нет дайджестов</p>
-          <p className="text-sm">Создайте дайджест, чтобы AI делал сводки новостей из ваших каналов</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {configs.map((cfg) => (
-            <Link
-              key={cfg.id}
-              href={`/digests/${cfg.id}`}
-              className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--card-hover)] transition-colors"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-violet-600 flex items-center justify-center text-lg shrink-0">
-                AI
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-[var(--foreground)]">{cfg.name}</span>
-                  {!cfg.is_active && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--background)] text-[var(--muted)]">выкл</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm text-[var(--muted)] block mb-1">Расписание</label>
+                    <select
+                      value={scheduleType}
+                      onChange={(e) => setScheduleType(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+                    >
+                      <option value="manual">Вручную</option>
+                      <option value="daily">Ежедневно</option>
+                      <option value="weekly">Еженедельно (пн)</option>
+                    </select>
+                  </div>
+                  {scheduleType !== "manual" && (
+                    <div>
+                      <label className="text-sm text-[var(--muted)] block mb-1">Часы UTC</label>
+                      <input
+                        value={scheduleHours}
+                        onChange={(e) => setScheduleHours(e.target.value)}
+                        placeholder="8,14,20"
+                        className="w-full px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
                   )}
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--background)] text-[var(--muted)]">
-                    {SCHEDULE_LABELS[cfg.schedule_type] || cfg.schedule_type}
-                  </span>
+                  <div>
+                    <label className="text-sm text-[var(--muted)] block mb-1">Период (часов)</label>
+                    <input
+                      type="number"
+                      value={periodHours}
+                      onChange={(e) => setPeriodHours(Number(e.target.value) || 24)}
+                      min={1}
+                      max={168}
+                      className="w-full px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
                 </div>
-                <div className="text-xs text-[var(--muted)] mt-0.5">
-                  {cfg.sources.length > 0 ? `${cfg.sources.length} источников` : "Все источники"} · {cfg.digest_count} дайджестов
-                  {cfg.last_digest && ` · Последний: ${formatDate(cfg.last_digest.created_at)}`}
+
+                <div>
+                  <label className="text-sm text-[var(--muted)] block mb-1">
+                    Источники {selectedSources.length > 0 && `(${selectedSources.length})`}
+                    <span className="text-xs ml-1">(пусто = все каналы)</span>
+                  </label>
+                  <SourcePicker sources={sources} selected={selectedSources} onChange={setSelectedSources} />
+                </div>
+
+                {error && (
+                  <div className="text-sm text-red-400">{error}</div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={creating || !name.trim() || !prompt.trim()}
+                    className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                  >
+                    {creating ? "Создаю…" : "Создать"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreate(false)}
+                    className="px-4 py-2 rounded-lg bg-[var(--card)] text-[var(--muted)] text-sm hover:text-[var(--foreground)]"
+                  >
+                    Отмена
+                  </button>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={(e) => handleGenerate(cfg.id, e)}
-                disabled={generatingId === cfg.id}
-                className="px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 shrink-0"
-              >
-                {generatingId === cfg.id ? "…" : "Создать"}
-              </button>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--muted)] shrink-0">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </Link>
-          ))}
-        </div>
+            </div>
+          )}
+
+          {configs.length === 0 && !showCreate ? (
+            <div className="text-center py-12 text-[var(--muted)]">
+              <p className="text-lg mb-2">Настроек нет</p>
+            </div>
+          ) : (
+            <div className="space-y-3 pb-20">
+              {configs.map((cfg) => (
+                <div
+                  key={cfg.id}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--card)] transition-colors"
+                >
+                  <Link href={`/digests/${cfg.id}`} className="flex-1 min-w-0 group flex items-center gap-4 cursor-pointer">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-violet-600 flex items-center justify-center text-lg shrink-0">
+                      AI
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{cfg.name}</span>
+                        {!cfg.is_active && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--card)] text-[var(--muted)]">выкл</span>
+                        )}
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--card)] text-[var(--muted)]">
+                          {SCHEDULE_LABELS[cfg.schedule_type] || cfg.schedule_type}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[var(--muted)] mt-0.5">
+                        {cfg.sources.length > 0 ? `${cfg.sources.length} источников` : "Все источники"} · {cfg.digest_count} дайджестов
+                        {cfg.last_digest && ` · Последний: ${formatDate(cfg.last_digest.created_at)}`}
+                      </div>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(e) => handleGenerate(cfg.id, e)}
+                    disabled={generatingId === cfg.id}
+                    className="px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 shrink-0"
+                  >
+                    {generatingId === cfg.id ? "…" : "Запустить"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
