@@ -2,6 +2,7 @@
 import base64
 import os
 import asyncio
+import logging
 from io import BytesIO
 from typing import Any
 
@@ -9,6 +10,10 @@ from telethon import TelegramClient
 
 from app.core.config import get_settings
 
+logger = logging.getLogger(__name__)
+
+# Блокировка для устранения "database is locked" в SQLite файле Telethon
+_preview_lock = asyncio.Lock()
 
 def _normalize_username(raw: str) -> str:
     s = (raw or "").strip().lstrip("@").replace("https://t.me/", "").split("/")[0].split("?")[0]
@@ -43,8 +48,9 @@ async def get_channel_public_info(username: str) -> dict[str, Any]:
     Оборачивает _get_info_impl в таймаут, чтобы не зависать при блокировке БД Telethon.
     """
     try:
-        return await asyncio.wait_for(_get_info_impl(username), timeout=5.0)
+        return await asyncio.wait_for(_get_info_impl(username), timeout=30.0)
     except (asyncio.TimeoutError, Exception) as e:
+        logger.error(f"Error getting Telegram preview for {username}: {repr(e)}")
         # Если не вышло (таймаут или ошибка), предполагаем, что добавлять можно (нет запрета)
         return {"has_public_link": True, "avatar_base64": None}
 
@@ -74,30 +80,32 @@ async def _get_info_impl(username: str) -> dict[str, Any]:
     if not os.path.exists(session_path + ".session") and not os.path.exists(session_path):
         result["has_public_link"] = True
         return result
-    client = TelegramClient(session_path, api_id_int, api_hash)
-    try:
-        await client.connect()
-        if not await client.is_user_authorized():
-            # Нет авторизации — не можем проверить, считаем публичным
+        
+    async with _preview_lock:
+        client = TelegramClient(session_path, api_id_int, api_hash)
+        try:
+            await client.connect()
+            if not await client.is_user_authorized():
+                # Нет авторизации — не можем проверить, считаем публичным
+                result["has_public_link"] = True
+                return result
+            entity = await client.get_entity(username)
+            if not entity_has_public_link(entity):
+                return result  # has_public_link остаётся False — канал точно invite-only
             result["has_public_link"] = True
+            buf = BytesIO()
+            await client.download_profile_photo(entity, file=buf)
+            buf.seek(0)
+            data = buf.getvalue()
+            if data:
+                result["avatar_base64"] = base64.b64encode(data).decode("ascii")
             return result
-        entity = await client.get_entity(username)
-        if not entity_has_public_link(entity):
-            return result  # has_public_link остаётся False — канал точно invite-only
-        result["has_public_link"] = True
-        buf = BytesIO()
-        await client.download_profile_photo(entity, file=buf)
-        buf.seek(0)
-        data = buf.getvalue()
-        if data:
-            result["avatar_base64"] = base64.b64encode(data).decode("ascii")
-        return result
-    except Exception:
-        # Не удалось подключиться или получить entity — считаем публичным
-        result["has_public_link"] = True
-    finally:
-        await client.disconnect()
-    
+        except Exception as e:
+            logger.error(f"Telethon internal error for {username}: {repr(e)}")
+            result["has_public_link"] = True
+        finally:
+            await client.disconnect()
+            
     return result
 
 
