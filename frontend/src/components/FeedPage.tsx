@@ -242,7 +242,7 @@ export default function FeedPage() {
             {posts.filter(post => {
               if (!hideAds) return true;
               const textLower = post.raw_text ? post.raw_text.toLowerCase() : "";
-              if (textLower.includes("#реклама") || textLower.includes("erid=") || textLower.includes("реклама. ооо")) return false;
+              if (textLower.includes("#реклама") || textLower.includes("erid=") || textLower.includes("реклама. ооо") || textLower.includes("партнерский материал") || textLower.includes("партнерский пост")) return false;
               // TO-DO: Если на бэкенде появится ИИ-флаг "is_ad", можно опираться на него:
               // if (post.is_ad) return false;
               return true;
