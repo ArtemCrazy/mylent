@@ -156,6 +156,7 @@ export default function FootballApp() {
       setSavingConfig(true);
       setEnabledLeagues(newArr);
       await api.apps.updateSettings({ football_leagues: newArr });
+      window.dispatchEvent(new Event("app_settings_updated"));
     } catch (e) {
       console.error("Failed to save leagues", e);
     } finally {

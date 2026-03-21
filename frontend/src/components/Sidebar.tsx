@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { api } from "@/lib/api";
 
 const mainNav = [
   {
@@ -103,6 +104,7 @@ export function Sidebar() {
   const [hasToken, setHasToken] = useState(false);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [leagues, setLeagues] = useState<string[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -114,6 +116,22 @@ export function Sidebar() {
     setOpen(false);
   }, [pathname]);
 
+  // Sync added apps (leagues) to sidebar
+  useEffect(() => {
+    const fetchLeagues = () => {
+      if (hasToken) {
+        api.apps.getSettings().then(s => {
+          const l = Array.isArray(s.football_leagues) ? s.football_leagues : [];
+          setLeagues(l.filter(x => x.length > 3 || x === "ЛЧ"));
+        }).catch(() => {});
+      }
+    };
+    
+    fetchLeagues();
+    window.addEventListener("app_settings_updated", fetchLeagues);
+    return () => window.removeEventListener("app_settings_updated", fetchLeagues);
+  }, [hasToken, pathname]); // re-fetch occasionally on nav
+
   const sidebarContent = (
     <>
       <div className="p-4 border-b border-[var(--border)] shrink-0 flex items-center gap-2">
@@ -124,11 +142,33 @@ export function Sidebar() {
       </div>
       <nav className="p-2 flex-1 min-h-0 overflow-y-auto">
         <ul className="space-y-0.5">
-          {mainNav.map(({ href, label, icon }) => (
-            <li key={href}>
-              <NavLink href={href} label={label} icon={icon} pathname={pathname} onClick={() => setOpen(false)} />
-            </li>
-          ))}
+          {mainNav.map(({ href, label, icon }) => {
+            const isApps = href === "/apps";
+            const isActiveApps = pathname.startsWith("/apps");
+            
+            return (
+              <li key={href}>
+                <NavLink href={href} label={label} icon={icon} pathname={pathname} onClick={() => setOpen(false)} />
+                
+                {/* Apps dropdown subtree */}
+                {isApps && isActiveApps && leagues.length > 0 && (
+                  <ul className="mt-1 pl-9 pr-2 space-y-0.5 mb-2 animate-fade-in border-l-2 border-[var(--border)] ml-5">
+                    {leagues.map(l => (
+                      <li key={l}>
+                        <Link 
+                          href="/apps/sport/football"
+                          onClick={() => setOpen(false)}
+                          className="flex justify-between items-center px-3 py-1.5 text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] rounded-md transition-colors"
+                        >
+                          <span className="truncate">{l}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
       <div className="p-2 border-t border-[var(--border)] shrink-0 flex items-center justify-between min-h-[52px]">
