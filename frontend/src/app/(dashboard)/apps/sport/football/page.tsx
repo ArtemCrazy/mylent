@@ -162,9 +162,9 @@ export default function FootballApp() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in relative pb-20">
-      <Link href="/apps" className="inline-flex items-center text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-6 transition-colors">
+      <Link href="/apps/sport" className="inline-flex items-center text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-6 transition-colors">
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 mr-1"><path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" /></svg>
-        Назад к Приложениям
+        Назад к видам спорта
       </Link>
       
       <header className="mb-8 flex items-end justify-between">
