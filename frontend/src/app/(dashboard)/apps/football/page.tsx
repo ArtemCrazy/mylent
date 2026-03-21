@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -30,9 +29,22 @@ const LEAGUES = [
   { id: "ALL", name: "Остальные турниры", short: "Другие", flag: "🌍" },
 ];
 
-function detectLeague(m: any): string {
-  const tName = (m.tournamentName || m.competition || "").toLowerCase();
-  const tId = m.tournamentTemplateId || "";
+interface FlashscoreMatch {
+  eventId: string;
+  eventStageId: number;
+  gameTime: string;
+  homeName: string;
+  awayName: string;
+  homeScore?: number | string;
+  awayScore?: number | string;
+  tournamentName?: string;
+  competition?: string;
+  tournamentTemplateId?: string;
+}
+
+function detectLeague(m: FlashscoreMatch | Record<string, unknown>): string {
+  const tName = ((m.tournamentName as string) || (m.competition as string) || "").toLowerCase();
+  const tId = (m.tournamentTemplateId as string) || "";
   if (tName.includes("england") && tName.includes("premier league")) return "EPL";
   if (tName.includes("russia") && (tName.includes("premier league") || tName.includes("rpl"))) return "RPL";
   if (tName.includes("champions league")) return "UCL";
@@ -48,7 +60,7 @@ function statusTranslate(stageId: number, gameTime: string): string {
 }
 
 export default function FootballApp() {
-  const [fixtures, setFixtures] = useState<any[]>([]);
+  const [fixtures, setFixtures] = useState<FlashscoreMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [enabledLeagues, setEnabledLeagues] = useState<string[]>([]);
@@ -56,6 +68,7 @@ export default function FootballApp() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchData() {
@@ -68,12 +81,13 @@ export default function FootballApp() {
       setEnabledLeagues(userLeagues);
       
       const res = await api.apps.footballFixtures();
-      setFixtures(Array.isArray(res) ? res : []);
-    } catch (e: any) {
-      if (e.message?.includes("SPORTDB_API_KEY")) {
+      setFixtures(Array.isArray(res) ? (res as FlashscoreMatch[]) : []);
+    } catch (e: unknown) {
+      const err = e as Error;
+      if (err.message?.includes("SPORTDB_API_KEY")) {
          setError("Ключ SPORTDB_API_KEY не настроен на сервере.");
       } else {
-         setError(e.message || "Ошибка загрузки данных");
+         setError(err.message || "Ошибка загрузки данных");
       }
     } finally {
       setLoading(false);
@@ -152,7 +166,7 @@ export default function FootballApp() {
                   <span className="text-xl">{league.flag}</span> {league.name}
                 </div>
                 <div className="divide-y divide-[var(--border)]">
-                  {matches.map((m: any) => {
+                  {matches.map((m) => {
                     const statusStr = statusTranslate(m.eventStageId, m.gameTime);
                     const isLive = [2, 12, 13, 6, 7].includes(m.eventStageId);
                     // Flashscore data usually returns score split or combined, lets try both

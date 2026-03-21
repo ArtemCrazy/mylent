@@ -1,0 +1,9 @@
+
+Oops! Something went wrong! :(
+
+ESLint: 8.57.1
+
+Error: 'patterns' must be a non-empty string or an array of non-empty strings
+    at ESLint.lintFiles (C:\Users\user\Documents\mylent\frontend\node_modules\eslint\lib\eslint\eslint.js:545:19)
+    at Object.execute (C:\Users\user\Documents\mylent\frontend\node_modules\eslint\lib\cli.js:421:36)
+    at async main (C:\Users\user\Documents\mylent\frontend\node_modules\eslint\bin\eslint.js:152:22)
