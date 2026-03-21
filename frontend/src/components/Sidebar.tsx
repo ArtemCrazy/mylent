@@ -152,18 +152,31 @@ export function Sidebar() {
                 
                 {/* Apps dropdown subtree */}
                 {isApps && isActiveApps && leagues.length > 0 && (
-                  <ul className="mt-1 pl-9 pr-2 space-y-0.5 mb-2 animate-fade-in border-l-2 border-[var(--border)] ml-5">
-                    {leagues.map(l => (
-                      <li key={l}>
-                        <Link 
-                          href="/apps/sport/football"
-                          onClick={() => setOpen(false)}
-                          className="flex justify-between items-center px-3 py-1.5 text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] rounded-md transition-colors"
-                        >
-                          <span className="truncate">{l}</span>
-                        </Link>
-                      </li>
-                    ))}
+                  <ul className="mt-1 pl-5 pr-2 space-y-0.5 mb-2 animate-fade-in border-l-2 border-[var(--border)] ml-3">
+                    {leagues.map(l => {
+                      let shortName = l;
+                      let iconPath = null;
+                      if (l === "Английская Премьер-лига") { shortName = "АПЛ"; iconPath = "/icons/apl.svg"; }
+                      else if (l === "Российская Премьер-лига") { shortName = "РПЛ"; }
+                      else if (l === "Лига Чемпионов") { shortName = "ЛЧ"; }
+                      
+                      return (
+                        <li key={l}>
+                          <Link 
+                            href="/apps/sport/football"
+                            onClick={() => setOpen(false)}
+                            className="group flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] rounded-md transition-colors"
+                          >
+                            {iconPath ? (
+                              <img src={iconPath} alt={shortName} className="w-4 h-4 object-contain brightness-0 invert opacity-50 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full bg-[var(--border)] group-hover:bg-[var(--muted)] transition-colors ml-1" />
+                            )}
+                            <span className="truncate font-medium">{shortName}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </li>
