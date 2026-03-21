@@ -55,7 +55,8 @@ async def download_message_media(
         filename = f"{msg.id}.jpg"
         filepath = os.path.join(msg_dir, filename)
         try:
-            await client.download_media(msg, file=filepath)
+            import asyncio
+            await asyncio.wait_for(client.download_media(msg, file=filepath), timeout=60.0)
             photos.append({"url": f"/media/{source_id}/{filename}"})
         except Exception as e:
             print(f"    Ошибка скачивания фото {msg.id}: {e}")
@@ -70,7 +71,8 @@ async def download_message_media(
             filename = f"{msg.id}.{ext}"
             filepath = os.path.join(msg_dir, filename)
             try:
-                await client.download_media(msg, file=filepath)
+                import asyncio
+                await asyncio.wait_for(client.download_media(msg, file=filepath), timeout=300.0)
                 videos.append({"url": f"/media/{source_id}/{filename}"})
             except Exception as e:
                 print(f"    Ошибка скачивания видео {msg.id}: {e}")

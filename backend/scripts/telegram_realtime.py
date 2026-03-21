@@ -84,61 +84,65 @@ _client: TelegramClient | None = None
 
 async def on_new_message(event: events.NewMessage.Event) -> None:
     """Новое сообщение в одном из наших каналов — пишем в БД."""
-    if not isinstance(event.message, Message):
-        return
-    text = (event.message.message or event.message.text or "").strip()
-    if not text:
-        return
-    from telethon import utils
-    peer_id = utils.get_peer_id(event.peer_id) if getattr(event, 'peer_id', None) else None
-    
-    source = _channel_to_source.get(event.chat_id) or (peer_id and _channel_to_source.get(peer_id))
-    if not source:
-        return
-    eid = str(event.message.id)
-    username = get_channel_username(source)
-    if not username:
-        return
-    now = datetime.now(timezone.utc)
-    published_at = event.message.date
-    if published_at and published_at.tzinfo is None:
-        published_at = published_at.replace(tzinfo=timezone.utc)
-
-    media_json = None
-    if _client:
-        media_json = await download_message_media(_client, event.message, source.id)
-    html_text = message_to_html(event.message)
-
-    async with AsyncSessionLocal() as db:
-        from sqlalchemy import select
-        existing = await db.execute(
-            select(Post).where(Post.source_id == source.id, Post.external_id == eid)
-        )
-        if existing.scalar_one_or_none():
+    try:
+        if not isinstance(event.message, Message):
             return
-        post = Post(
-            source_id=source.id,
-            external_id=eid,
-            title=None,
-            raw_text=text,
-            cleaned_text=html_text,
-            preview_text=make_preview(text),
-            original_url=f"https://t.me/{username}/{event.message.id}",
-            published_at=published_at or now,
-            imported_at=now,
-            updated_at=now,
-            media_json=media_json,
-        )
-        db.add(post)
-        await db.flush()  # get post.id for signal matching
-        alerts = await check_post_signals(db, post.id, source.id, text)
-        await detect_and_mark_duplicate(db, post)
-        src = await db.get(Source, source.id)
-        if src:
-            src.last_synced_at = now
-        await db.commit()
-    print(f"  + {source.title}: новый пост #{eid}" + (f" ({alerts} сигналов)" if alerts else ""))
+        text = (event.message.message or event.message.text or "").strip()
+        if not text:
+            return
+        from telethon import utils
+        peer_id = utils.get_peer_id(event.peer_id) if getattr(event, 'peer_id', None) else None
+        
+        source = _channel_to_source.get(event.chat_id) or (peer_id and _channel_to_source.get(peer_id))
+        if not source:
+            return
+        eid = str(event.message.id)
+        username = get_channel_username(source)
+        if not username:
+            return
+        now = datetime.now(timezone.utc)
+        published_at = event.message.date
+        if published_at and published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=timezone.utc)
 
+        media_json = None
+        if _client:
+            media_json = await download_message_media(_client, event.message, source.id)
+        html_text = message_to_html(event.message)
+
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import select
+            existing = await db.execute(
+                select(Post).where(Post.source_id == source.id, Post.external_id == eid)
+            )
+            if existing.scalar_one_or_none():
+                return
+            post = Post(
+                source_id=source.id,
+                external_id=eid,
+                title=None,
+                raw_text=text,
+                cleaned_text=html_text,
+                preview_text=make_preview(text),
+                original_url=f"https://t.me/{username}/{event.message.id}",
+                published_at=published_at or now,
+                imported_at=now,
+                updated_at=now,
+                media_json=media_json,
+            )
+            db.add(post)
+            await db.flush()  # get post.id for signal matching
+            alerts = await check_post_signals(db, post.id, source.id, text)
+            await detect_and_mark_duplicate(db, post)
+            src = await db.get(Source, source.id)
+            if src:
+                src.last_synced_at = now
+            await db.commit()
+        print(f"  + {source.title}: новый пост #{eid}" + (f" ({alerts} сигналов)" if alerts else ""))
+    except Exception as e:
+        import traceback
+        print(f"  [Error] Неожиданная ошибка в on_new_message (chat_id={getattr(event, 'chat_id', 'unknown')}): {e}")
+        traceback.print_exc()
 
 async def main() -> None:
     settings = get_settings()
@@ -177,14 +181,19 @@ async def main() -> None:
         async def _reload_sources_loop() -> None:
             while True:
                 await asyncio.sleep(_RELOAD_INTERVAL_SEC)
-                await load_sources(client)
-                client.remove_event_handler(on_new_message)
-                client.add_event_handler(
-                    on_new_message,
-                    events.NewMessage(chats=list(_channel_to_source.keys())),
-                )
-                if _channel_to_source:
-                    print("  Список каналов обновлён.")
+                try:
+                    await load_sources(client)
+                    client.remove_event_handler(on_new_message)
+                    client.add_event_handler(
+                        on_new_message,
+                        events.NewMessage(chats=list(_channel_to_source.keys())),
+                    )
+                    if _channel_to_source:
+                        print("  Список каналов обновлён.")
+                except Exception as e:
+                    import traceback
+                    print(f"  [Error] Ошибка обновления списка каналов: {e}")
+                    traceback.print_exc()
 
         print("Реал-тайм включён — новые посты будут появляться в ленте. Список каналов обновляется каждые 90 с. Ctrl+C — выход.\n")
         client.add_event_handler(
