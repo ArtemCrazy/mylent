@@ -39,12 +39,10 @@ interface FlashscoreMatch {
   awayScore?: number | string;
   tournamentName?: string;
   competition?: string;
-  tournamentTemplateId?: string;
 }
 
 function detectLeague(m: FlashscoreMatch): string {
   const tName = ((m.tournamentName as string) || (m.competition as string) || "").toLowerCase();
-  const tId = (m.tournamentTemplateId as string) || "";
   if (tName.includes("england") && tName.includes("premier league")) return "EPL";
   if (tName.includes("russia") && (tName.includes("premier league") || tName.includes("rpl"))) return "RPL";
   if (tName.includes("champions league")) return "UCL";
