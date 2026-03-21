@@ -89,7 +89,10 @@ async def on_new_message(event: events.NewMessage.Event) -> None:
     text = (event.message.message or event.message.text or "").strip()
     if not text:
         return
-    source = _channel_to_source.get(event.chat_id)
+    from telethon import utils
+    peer_id = utils.get_peer_id(event.peer_id) if getattr(event, 'peer_id', None) else None
+    
+    source = _channel_to_source.get(event.chat_id) or (peer_id and _channel_to_source.get(peer_id))
     if not source:
         return
     eid = str(event.message.id)

@@ -47,6 +47,7 @@ services:
 
   # Парсер по расписанию: раз в N минут (запасной вариант, если realtime перезапустился).
   sync:
+    profiles: ["disabled"]
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
