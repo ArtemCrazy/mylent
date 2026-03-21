@@ -16,7 +16,7 @@ _football_cache: dict = {
     "data": None
 }
 
-SPORTDB_API_KEY = os.environ.get("SPORTDB_API_KEY")
+SPORTDB_API_KEY = os.environ.get("SPORTDB_API_KEY", "HQQYgzbVboleYaabgKnDeOWKC2pLUtNlN77tX6Ba")
 
 @router.get("/football/fixtures")
 async def get_football_fixtures(date: str | None = None):
