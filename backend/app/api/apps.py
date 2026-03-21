@@ -40,10 +40,11 @@ async def get_football_fixtures(date: str | None = None):
     
     try:
         from datetime import timedelta
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         async with httpx.AsyncClient() as client:
             for league in urls:
                 try:
-                    resp = await client.get(league["url"], timeout=8.0, follow_redirects=True)
+                    resp = await client.get(league["url"], timeout=8.0, follow_redirects=True, headers=headers)
                     if resp.status_code != 200:
                         continue
                     
