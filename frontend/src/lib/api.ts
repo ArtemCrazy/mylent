@@ -179,10 +179,10 @@ export const api = {
       }, FETCH_TIMEOUT_LONG_MS),
   },
   apps: {
-    getSettings: () => request<Record<string, unknown>>("/apps/settings"),
+    getSettings: () => request<{ football_leagues?: string[] }>("/apps/settings"),
     footballFixtures: (date?: string) =>
       request<unknown[]>(`/apps/football/fixtures${date ? `?date=${date}` : ""}`),
-    updateSettings: (updates: Record<string, unknown>) =>
+    updateSettings: (updates: { football_leagues?: string[] }) =>
       request<unknown>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
   },
 };
