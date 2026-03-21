@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
@@ -66,18 +66,13 @@ export default function FootballApp() {
   const [enabledLeagues, setEnabledLeagues] = useState<string[]>([]);
   const [savingConfig, setSavingConfig] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
       
       const settings = await api.apps.getSettings();
-      const userLeagues = settings.football_leagues || ["EPL", "RPL"];
+      const userLeagues = (settings.football_leagues as string[]) || ["EPL", "RPL"];
       setEnabledLeagues(userLeagues);
       
       const res = await api.apps.footballFixtures();
@@ -92,7 +87,11 @@ export default function FootballApp() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   async function toggleLeague(id: string) {
     setSavingConfig(true);
