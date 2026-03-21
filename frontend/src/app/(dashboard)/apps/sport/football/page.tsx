@@ -39,6 +39,19 @@ function getLeagueName(m: FlashscoreMatch): string {
   return m.tournamentName || m.competition || "Неизвестная лига";
 }
 
+function getLeagueIcon(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("англия") || n.includes("англии") || n.includes("premier league")) return "🏴󠁧󠁢󠁥󠁮󠁧󠁿";
+  if (n.includes("россия") || n.includes("россии") || n.includes("russia") || n.includes("рпл")) return "🇷🇺";
+  if (n.includes("испания") || n.includes("испании") || n.includes("la liga") || n.includes("primera")) return "🇪🇸";
+  if (n.includes("италия") || n.includes("италии") || n.includes("serie a")) return "🇮🇹";
+  if (n.includes("германия") || n.includes("германии") || n.includes("bundesliga")) return "🇩🇪";
+  if (n.includes("франция") || n.includes("франции") || n.includes("ligue 1")) return "🇫🇷";
+  if (n.includes("лига чемпион") || n.includes("champions league")) return "🏆";
+  if (n.includes("европ") || n.includes("europa")) return "🌍";
+  return "⚽";
+}
+
 function statusTranslate(stageId: number, gameTime: string): string {
   if (stageId === 1) return gameTime || "Ожидается";
   if (stageId === 38) return "Перерыв";
@@ -237,7 +250,7 @@ export default function FootballApp() {
                       onClick={() => addLeague(l)}
                       className="w-full text-left px-4 py-3 text-sm hover:bg-[var(--card-hover)] rounded-lg transition-colors flex justify-between items-center group"
                     >
-                      <span className="font-semibold">{l}</span>
+                      <span className="font-semibold flex items-center gap-2"><span className="text-lg">{getLeagueIcon(l)}</span> {l}</span>
                       <span className="text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity">Добавить +</span>
                     </button>
                   ))}
@@ -246,6 +259,28 @@ export default function FootballApp() {
             </div>
           )}
         </div>
+
+        {/* Available Leagues Grid (Directly visible) */}
+        {uniqueAvailableLeagues.filter(l => !enabledLeagues.includes(l)).length > 0 && (
+          <div className="mt-8 pt-6 border-t border-[var(--border)]">
+            <h4 className="text-sm font-semibold text-[var(--muted)] mb-4">ДОСТУПНЫЕ ДЛЯ ДОБАВЛЕНИЯ:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {uniqueAvailableLeagues.filter(l => !enabledLeagues.includes(l)).slice(0, 12).map(l => (
+                <button
+                  key={l}
+                  onClick={() => addLeague(l)}
+                  className="flex items-center gap-3 px-3 py-2.5 bg-[var(--background)] hover:bg-[var(--card-hover)] border border-[var(--border)] hover:border-[var(--accent)] rounded-xl transition-all text-left group"
+                >
+                  <span className="text-2xl drop-shadow-sm group-hover:scale-110 transition-transform">{getLeagueIcon(l)}</span>
+                  <span className="text-sm font-medium leading-tight truncate flex-1">{l}</span>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-[var(--muted)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
+                    <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v5.5h5.5a.75.75 0 010 1.5h-5.5v5.5a.75.75 0 01-1.5 0v-5.5h-5.5a.75.75 0 010-1.5h5.5v-5.5A.75.75 0 0110 3z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {error ? (
