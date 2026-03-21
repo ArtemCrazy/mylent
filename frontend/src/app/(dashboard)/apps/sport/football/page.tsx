@@ -124,10 +124,18 @@ export default function FootballApp() {
   }, [fixtures]);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    return uniqueAvailableLeagues.filter(l => 
-      l.toLowerCase().includes(searchQuery.toLowerCase()) && !enabledLeagues.includes(l)
-    ).slice(0, 15);
+    const available = uniqueAvailableLeagues.filter(l => !enabledLeagues.includes(l));
+    if (!searchQuery.trim()) return available.slice(0, 30);
+    
+    // Simple alias matching (if user types "апл" it matches Английская Премьер-лига, "рпл" -> Российская Премьер-лига)
+    const q = searchQuery.toLowerCase().trim();
+    return available.filter(l => {
+      const name = l.toLowerCase();
+      const isEPL = q === "апл" && name.includes("английская");
+      const isRPL = q === "рпл" && name.includes("российская");
+      const isUCL = (q === "лч" || q.includes("лига чемпион")) && name.includes("champions league");
+      return name.includes(q) || isEPL || isRPL || isUCL;
+    }).slice(0, 30);
   }, [searchQuery, uniqueAvailableLeagues, enabledLeagues]);
 
   async function updateLeaguesSetting(newArr: string[]) {
@@ -215,10 +223,12 @@ export default function FootballApp() {
               <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
             </svg>
           </div>
-          {(isSearching && searchQuery.trim() !== "") && (
+          {(isSearching) && (
             <div className="absolute z-20 w-full mt-2 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl max-h-72 overflow-y-auto">
               {searchResults.length === 0 ? (
-                <div className="px-4 py-4 text-sm text-[var(--muted)] text-center">Извините, лиг по вашему запросу не найдено. Попробуйте другой запрос.</div>
+                <div className="px-4 py-4 text-sm text-[var(--muted)] text-center">
+                  {searchQuery.trim() === "" ? "Нет доступных лиг для добавления." : "Извините, лиг по вашему запросу не найдено. Попробуйте другой запрос."}
+                </div>
               ) : (
                 <div className="p-1">
                   {searchResults.map(l => (
