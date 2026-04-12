@@ -36,6 +36,7 @@ class BondSignal(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     bond_id: Mapped[int] = mapped_column(ForeignKey("bonds.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     condition_type: Mapped[str] = mapped_column(String(50), nullable=False)  # price_less, price_greater, yield_greater, news_mention, etc.
     target_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

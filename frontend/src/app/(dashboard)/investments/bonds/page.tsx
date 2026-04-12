@@ -25,6 +25,7 @@ type PortfolioItem = {
 
 type SignalItem = {
   id: number;
+  name?: string;
   condition_type: string;
   target_value: number;
   news_category: string | null;
@@ -36,6 +37,7 @@ type SignalItem = {
 
 type SignalGroup = {
   key: string;
+  name: string;
   condition_type: string;
   target_value: number | null;
   news_category: string | null;
@@ -83,7 +85,8 @@ export default function InvestmentsPage() {
   const [selectedBonds, setSelectedBonds] = useState<Set<number>>(new Set());
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<SignalGroup | null>(null);
-  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
+  const [bulkSignalForm, setBulkSignalForm] = useState<{name: string, condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
+    name: "",
     condition_type: "price_less",
     target_value: "",
     news_category: "",
@@ -457,7 +460,7 @@ export default function InvestmentsPage() {
             <h2 className="text-[var(--foreground)] font-semibold text-lg">Активные сигналы</h2>
             <button onClick={() => {
               setEditingGroup(null);
-              setBulkSignalForm({ condition_type: "price_less", target_value: "", news_category: "", cron_minutes: 1, notify_telegram: true });
+              setBulkSignalForm({ name: "", condition_type: "price_less", target_value: "", news_category: "", cron_minutes: 1, notify_telegram: true });
               setSelectedBonds(new Set());
               setBulkModalOpen(true);
             }} className="bg-[var(--accent)] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
@@ -484,10 +487,11 @@ export default function InvestmentsPage() {
                 <tbody className="divide-y divide-[var(--border)] relative border-b border-[var(--border)]">
               {(() => {
                 const groups = Object.values(signals.reduce((acc, sig) => {
-                  const key = `${sig.condition_type}_${sig.target_value}_${sig.news_category}_${sig.cron_minutes}_${sig.notify_telegram}`;
+                  const key = `${sig.name || ""}_${sig.condition_type}_${sig.target_value}_${sig.news_category}_${sig.cron_minutes}_${sig.notify_telegram}`;
                   if (!acc[key]) {
                     acc[key] = {
                       key,
+                      name: sig.name || "",
                       condition_type: sig.condition_type,
                       target_value: sig.target_value,
                       news_category: sig.news_category,
@@ -515,6 +519,7 @@ export default function InvestmentsPage() {
                       setEditingGroup(group);
                       setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
                       setBulkSignalForm({
+                        name: group.name,
                         condition_type: group.condition_type,
                         target_value: group.target_value ? group.target_value.toString() : "",
                         news_category: group.news_category || "",
@@ -525,13 +530,17 @@ export default function InvestmentsPage() {
                     }}>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-[var(--foreground)] truncate max-w-[300px]">
-                          {group.condition_type === "price_less" && `Цена упадет < ${group.target_value}`}
-                          {group.condition_type === "price_greater" && `Цена вырастет > ${group.target_value}`}
-                          {group.condition_type === "yield_greater" && `Доходность > ${group.target_value}%`}
-                          {group.condition_type === "yield_less" && `Доходность < ${group.target_value}%`}
-                          {group.condition_type === "price_change_drop_greater" && `Дневное падение > ${group.target_value}%`}
-                          {group.condition_type === "price_change_grow_greater" && `Дневной рост > ${group.target_value}%`}
-                          {group.condition_type === "news_mention" && (group.news_category ? `Новости (Кат: ${getCategoryDef(group.news_category)?.label || group.news_category})` : "Новости (Любая)")}
+                          {group.name ? group.name : (
+                            <>
+                              {group.condition_type === "price_less" && `Цена упадет < ${group.target_value}`}
+                              {group.condition_type === "price_greater" && `Цена вырастет > ${group.target_value}`}
+                              {group.condition_type === "yield_greater" && `Доходность > ${group.target_value}%`}
+                              {group.condition_type === "yield_less" && `Доходность < ${group.target_value}%`}
+                              {group.condition_type === "price_change_drop_greater" && `Дневное падение > ${group.target_value}%`}
+                              {group.condition_type === "price_change_grow_greater" && `Дневной рост > ${group.target_value}%`}
+                              {group.condition_type === "news_mention" && (group.news_category ? `Новости (Кат: ${getCategoryDef(group.news_category)?.label || group.news_category})` : "Новости (Любая)")}
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[var(--muted)]">
@@ -558,6 +567,7 @@ export default function InvestmentsPage() {
                                setEditingGroup(group);
                                setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
                                setBulkSignalForm({
+                                 name: group.name,
                                  condition_type: group.condition_type,
                                  target_value: group.target_value ? group.target_value.toString() : "",
                                  news_category: group.news_category || "",
@@ -620,6 +630,16 @@ export default function InvestmentsPage() {
             </div>
             
             <form onSubmit={saveGroupSignals} className="p-5 overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-4">
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Название сигнала (Текст в таблице)</label>
+                <input
+                  type="text"
+                  placeholder="Опционально. Например: Покупка ОФЗ"
+                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
+                  value={bulkSignalForm.name}
+                  onChange={e => setBulkSignalForm({...bulkSignalForm, name: e.target.value})}
+                />
+              </div>
               <div>
                 <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Событие</label>
                 <select

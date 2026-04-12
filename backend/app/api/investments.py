@@ -77,6 +77,7 @@ async def get_portfolio(
     for sig, b in signals_rows:
         signals.append({
             "id": sig.id,
+            "name": sig.name,
             "condition_type": sig.condition_type,
             "target_value": sig.target_value,
             "news_category": sig.news_category,
@@ -247,6 +248,7 @@ async def create_signal(
 ):
     """Create a price/yield signal."""
     bond_id = payload.get("bond_id")
+    name = payload.get("name")
     condition_type = payload.get("condition_type")
     target_value = payload.get("target_value")
     news_category = payload.get("news_category", "investments")
@@ -272,6 +274,7 @@ async def create_signal(
     val = float(target_value) if target_value is not None else None
     
     if sig:
+        sig.name = name
         sig.target_value = val
         sig.news_category = news_category
         sig.cron_minutes = cron_minutes
@@ -281,6 +284,7 @@ async def create_signal(
         sig = BondSignal(
             user_id=user.id,
             bond_id=bond_id,
+            name=name,
             condition_type=condition_type,
             target_value=val,
             news_category=news_category,
@@ -301,6 +305,7 @@ async def create_signals_bulk(
 ):
     """Create a signal for multiple bonds at once."""
     bond_ids = payload.get("bond_ids", [])
+    name = payload.get("name")
     condition_type = payload.get("condition_type")
     target_value = payload.get("target_value")
     news_category = payload.get("news_category", "investments")
@@ -328,6 +333,7 @@ async def create_signals_bulk(
         sig = res.scalars().first()
         
         if sig:
+            sig.name = name
             sig.target_value = val
             sig.news_category = news_category
             sig.cron_minutes = cron_minutes
@@ -337,6 +343,7 @@ async def create_signals_bulk(
             sig = BondSignal(
                 user_id=user.id,
                 bond_id=bond_id,
+                name=name,
                 condition_type=condition_type,
                 target_value=val,
                 news_category=news_category,
@@ -382,6 +389,9 @@ async def update_signal(
             
     if "news_category" in payload:
         sig.news_category = payload["news_category"]
+        
+    if "name" in payload:
+        sig.name = payload["name"]
     
     if "cron_minutes" in payload:
         sig.cron_minutes = int(payload["cron_minutes"])
