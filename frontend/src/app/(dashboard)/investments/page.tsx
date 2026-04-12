@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 
 type Bond = {
@@ -59,6 +59,35 @@ export default function InvestmentsPage() {
     condition_type: "price_less",
     target_value: "",
   });
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showInMenu, setShowInMenu] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setShowInMenu(localStorage.getItem("show_investments_in_menu") === "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleShowInMenu = () => {
+    const newValue = !showInMenu;
+    setShowInMenu(newValue);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("show_investments_in_menu", newValue.toString());
+      window.dispatchEvent(new Event("investments_menu_toggled"));
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -145,38 +174,68 @@ export default function InvestmentsPage() {
     <div className="p-4 md:p-6 lg:max-w-6xl lg:mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-[var(--foreground)]">Инвестиции</h1>
 
-      {/* Main Tabs */}
-      <div className="flex space-x-2 border-b border-[var(--border)] mb-6 overflow-x-auto">
-        <button
-          onClick={() => setMainTab("portfolio")}
-          className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-            mainTab === "portfolio"
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
-          }`}
-        >
-          Мой портфель
-        </button>
-        <button
-          onClick={() => setMainTab("search")}
-          className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-            mainTab === "search"
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
-          }`}
-        >
-          Поиск активов
-        </button>
-        <button
-          onClick={() => setMainTab("signals")}
-          className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-            mainTab === "signals"
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
-          }`}
-        >
-          Сигналы ({signals.length})
-        </button>
+      {/* Main Tabs and Settings */}
+      <div className="flex justify-between items-end border-b border-[var(--border)] mb-6">
+        <div className="flex space-x-2 overflow-x-auto">
+          <button
+            onClick={() => setMainTab("portfolio")}
+            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+              mainTab === "portfolio"
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Мой портфель
+          </button>
+          <button
+            onClick={() => setMainTab("search")}
+            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+              mainTab === "search"
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Поиск активов
+          </button>
+          <button
+            onClick={() => setMainTab("signals")}
+            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+              mainTab === "signals"
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Сигналы ({signals.length})
+          </button>
+        </div>
+
+        {/* Settings Gear */}
+        <div className="relative pb-2" ref={settingsRef}>
+          <button 
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-hover)] transition-colors"
+            aria-label="Настройки инвестиций"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+
+          {settingsOpen && (
+            <div className="absolute right-0 top-full mt-1 w-64 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg z-10 p-2 animate-fade-in origin-top-right">
+              <label className="flex items-center gap-3 p-2 hover:bg-[var(--card-hover)] rounded-lg cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]" 
+                  checked={showInMenu}
+                  onChange={toggleShowInMenu}
+                />
+                <span className="text-sm font-medium text-[var(--foreground)]">Отобразить в меню</span>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* PORTFOLIO TAB */}

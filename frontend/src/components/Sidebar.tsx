@@ -222,6 +222,7 @@ export function Sidebar() {
   const [hasToken, setHasToken] = useState(getInitialHasToken);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(getInitialHasToken);
+  const [showInvestments, setShowInvestments] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => readAppSettingsCache() ?? {});
   const [settingsLoaded, setSettingsLoaded] = useState(() => Boolean(readAppSettingsCache()) || !getInitialHasToken());
   const [leagues, setLeagues] = useState<string[]>(() => {
@@ -247,6 +248,13 @@ export function Sidebar() {
   useEffect(() => {
     setMounted(true);
     setHasToken(getInitialHasToken());
+    setShowInvestments(localStorage.getItem("show_investments_in_menu") === "true");
+
+    const handleInvestmentsToggle = () => {
+      setShowInvestments(localStorage.getItem("show_investments_in_menu") === "true");
+    };
+    window.addEventListener("investments_menu_toggled", handleInvestmentsToggle);
+    return () => window.removeEventListener("investments_menu_toggled", handleInvestmentsToggle);
   }, []);
 
   useEffect(() => {
@@ -479,15 +487,31 @@ export function Sidebar() {
       </div>
       <nav className="p-2 flex-1 min-h-0 overflow-y-auto">
         <ul className="space-y-0.5">
-          {mainNav.map(({ href, label, icon }) => {
-            const isApps = href === "/apps";
-            return (
-              <li key={href}>
-                <NavLink href={href} label={label} icon={icon} pathname={pathname} onClick={() => setOpen(false)} />
-                {isApps && appSubnav}
-              </li>
-            );
-          })}
+          {(() => {
+            const dynamicNav = [...mainNav];
+            if (showInvestments) {
+              const settingsIdx = dynamicNav.findIndex(i => i.href === '/settings');
+              dynamicNav.splice(settingsIdx, 0, {
+                href: "/investments",
+                label: "Инвестиции",
+                icon: (
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+                    <path d="M2 13.692c0-.398.34-.731.736-.723 3.652.073 6.91-1.63 9.4-4.887a.75.75 0 011.085-.102l2.671 2.378 2.302-2.301a.75.75 0 111.06 1.06l-2.83 2.83a.75.75 0 01-1.045.016l-2.617-2.329c-2.075 2.898-5.008 4.394-8.083 4.417A.75.75 0 012 13.692z" />
+                    <path d="M15 4a1 1 0 100-2 1 1 0 000 2zM15 7.5a1 1 0 100-2 1 1 0 000 2zM15 11a1 1 0 100-2 1 1 0 000 2zM18 4a1 1 0 100-2 1 1 0 000 2zM18 7.5a1 1 0 100-2 1 1 0 000 2zM18 11a1 1 0 100-2 1 1 0 000 2zM12 4a1 1 0 100-2 1 1 0 000 2z" />
+                  </svg>
+                )
+              });
+            }
+            return dynamicNav.map(({ href, label, icon }) => {
+              const isApps = href === "/apps";
+              return (
+                <li key={href}>
+                  <NavLink href={href} label={label} icon={icon} pathname={pathname} onClick={() => setOpen(false)} />
+                  {isApps && appSubnav}
+                </li>
+              );
+            });
+          })()}
         </ul>
       </nav>
       <div className="p-2 border-t border-[var(--border)] shrink-0">
