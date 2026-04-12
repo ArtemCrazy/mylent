@@ -34,6 +34,17 @@ type SignalItem = {
   bond: { shortname: string; isin: string; id: number; current_price?: number; current_yield?: number; rating_ru?: string };
 };
 
+type SignalGroup = {
+  key: string;
+  condition_type: string;
+  target_value: number | null;
+  news_category: string | null;
+  cron_minutes: number;
+  notify_telegram: boolean;
+  bonds: SignalItem["bond"][];
+  signals: SignalItem[];
+};
+
 export default function InvestmentsPage() {
   const [mainTab, setMainTab] = useState<"portfolio" | "search" | "signals">("portfolio");
 
@@ -68,37 +79,17 @@ export default function InvestmentsPage() {
   const [signals, setSignals] = useState<SignalItem[]>([]);
   const [sources, setSources] = useState<{ id: number; category: string | null }[]>([]);
 
-  // For editing existing signals
-  const [editingSignalId, setEditingSignalId] = useState<number | null>(null);
-  const [editSignalForm, setEditSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
+  // For editing and bulk signal grouping
+  const [selectedBonds, setSelectedBonds] = useState<Set<number>>(new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<SignalGroup | null>(null);
+  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
     condition_type: "price_less",
     target_value: "",
     news_category: "",
     cron_minutes: 1,
     notify_telegram: true
   });
-
-  // For inline signal creation in portfolio table
-  const [addingSignalFor, setAddingSignalFor] = useState<number | null>(null);
-  const [signalForm, setSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
-    condition_type: "price_less",
-    target_value: "",
-    news_category: "investments",
-    cron_minutes: 15,
-    notify_telegram: true
-  });
-
-  // For bulk signal creation
-  const [selectedBonds, setSelectedBonds] = useState<Set<number>>(new Set());
-  const [bulkModalOpen, setBulkModalOpen] = useState(false);
-  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
-    condition_type: "price_less",
-    target_value: "",
-    news_category: "investments",
-    cron_minutes: 15,
-    notify_telegram: true
-  });
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showInMenu, setShowInMenu] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -186,76 +177,43 @@ export default function InvestmentsPage() {
     }
   };
 
-  const addSignal = async (e: React.FormEvent, bondId: number) => {
-    e.preventDefault();
-    if (!signalForm.target_value && signalForm.condition_type !== "news_mention") return;
 
-    try {
-      await api.investments.addSignal({
-          bond_id: bondId,
-          condition_type: signalForm.condition_type,
-          target_value: signalForm.condition_type === "news_mention" ? 0 : parseFloat(signalForm.target_value),
-          news_category: signalForm.news_category,
-          cron_minutes: signalForm.cron_minutes,
-          notify_telegram: signalForm.notify_telegram
-      });
-      fetchData();
-      setAddingSignalFor(null);
-      setSignalForm({ condition_type: "price_less", target_value: "", news_category: "investments", cron_minutes: 15, notify_telegram: true });
-    } catch (error) {
-      console.error(error);
-      alert("Ошибка при добавлении сигнала");
-    }
-  };
-
-  const updateSignal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSignalId) return;
-    if (!editSignalForm.target_value && editSignalForm.condition_type !== "news_mention") return;
-
-    try {
-      await api.investments.updateSignal(editingSignalId, {
-        condition_type: editSignalForm.condition_type,
-        target_value: editSignalForm.condition_type === "news_mention" ? null : parseFloat(editSignalForm.target_value),
-        news_category: editSignalForm.news_category,
-        cron_minutes: editSignalForm.cron_minutes,
-        notify_telegram: editSignalForm.notify_telegram
-      });
-      fetchData();
-      setEditingSignalId(null);
-    } catch (e) {
-      console.error(e);
-      alert("Ошибка при обновлении сигнала");
-    }
-  };
-
-  const addBulkSignals = async (e: React.FormEvent) => {
+  const saveGroupSignals = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bulkSignalForm.target_value && bulkSignalForm.condition_type !== "news_mention") return;
     
     try {
-      await api.investments.addSignalBulk({
-        bond_ids: Array.from(selectedBonds),
-        condition_type: bulkSignalForm.condition_type,
-        target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value),
-        news_category: bulkSignalForm.news_category,
-        cron_minutes: bulkSignalForm.cron_minutes,
-        notify_telegram: bulkSignalForm.notify_telegram
-      });
+      if (editingGroup) {
+         const oldSignalIds = editingGroup.signals.map((s: SignalItem) => s.id);
+         if (editingGroup.condition_type !== bulkSignalForm.condition_type) {
+            await Promise.all(oldSignalIds.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
+         } else {
+            const bondsToDelete = editingGroup.bonds.filter((b: SignalItem["bond"]) => !selectedBonds.has(b.id));
+            const signalIdsToDelete = bondsToDelete.map((b: SignalItem["bond"]) => editingGroup.signals.find((s: SignalItem) => s.bond.id === b.id)?.id).filter(Boolean) as number[];
+            if (signalIdsToDelete.length) {
+               await Promise.all(signalIdsToDelete.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
+            }
+         }
+      }
+
+      if (selectedBonds.size > 0) {
+        await api.investments.addSignalBulk({
+          bond_ids: Array.from(selectedBonds),
+          condition_type: bulkSignalForm.condition_type,
+          target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value),
+          news_category: bulkSignalForm.news_category,
+          cron_minutes: bulkSignalForm.cron_minutes,
+          notify_telegram: bulkSignalForm.notify_telegram
+        });
+      }
+
       fetchData();
       setBulkModalOpen(false);
       setSelectedBonds(new Set());
-      setMainTab("signals");
+      setEditingGroup(null);
     } catch (e) {
       console.error(e);
-      alert("Ошибка при массовом добавлении");
-    }
-  };
-
-  const removeSignal = async (id: number) => {
-    if (confirm("Удалить сигнал?")) {
-      await api.investments.removeSignal(id);
-      fetchData();
+      alert("Ошибка при сохранении сигнала");
     }
   };
 
@@ -422,68 +380,18 @@ export default function InvestmentsPage() {
                             <span className="text-[var(--muted)] text-sm">—</span>
                           )}
                         </td>
-                        <td className="p-4 relative">
-                          {addingSignalFor === item.bond.id ? (
-                            <form className="flex flex-col gap-2 relative z-10 p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl" onSubmit={(e) => addSignal(e, item.bond.id)}>
-                              <div className="flex justify-between">
-                                <span className="text-xs font-semibold text-[var(--muted)]">Новый сигнал</span>
-                                <button type="button" onClick={() => setAddingSignalFor(null)} className="text-[var(--muted)] hover:text-[var(--foreground)]">✕</button>
-                              </div>
-                              <select
-                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
-                                value={signalForm.condition_type}
-                                onChange={e => setSignalForm({ ...signalForm, condition_type: e.target.value })}
-                              >
-                                <option value="price_less">Цена меньше</option>
-                                <option value="price_greater">Цена больше</option>
-                                <option value="price_change_drop_greater">Падение за день &gt; %</option>
-                                <option value="news_mention">В новостях</option>
-                              </select>
-                              {signalForm.condition_type !== "news_mention" && (
-                                <input
-                                  type="number" step="0.01" required placeholder="Значение"
-                                  className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
-                                  value={signalForm.target_value}
-                                  onChange={e => setSignalForm({ ...signalForm, target_value: e.target.value })}
-                                />
-                              )}
-                              {signalForm.condition_type === "news_mention" && (
-                                <>
-                                  <select
-                                    className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
-                                    value={signalForm.news_category}
-                                    onChange={e => setSignalForm({ ...signalForm, news_category: e.target.value })}
-                                  >
-                                    {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
-                                      <option key={cat} value={cat as string}>{cat}</option>
-                                    ))}
-                                  </select>
-                                  <select
-                                    className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
-                                    value={signalForm.cron_minutes}
-                                    onChange={e => setSignalForm({ ...signalForm, cron_minutes: Number(e.target.value) })}
-                                  >
-                                    <option value="15">Проверять каждые 15 мин</option>
-                                    <option value="60">Проверять каждый час</option>
-                                    <option value="1440">Проверять раз в день</option>
-                                  </select>
-                                </>
-                              )}
-                              <button type="submit" className="text-xs bg-blue-500 text-white font-medium px-2 py-1 rounded hover:bg-blue-600 transition-colors w-full mt-1">
-                                Сохранить вариант
-                              </button>
-                            </form>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setAddingSignalFor(item.bond.id);
-                                setSignalForm({ condition_type: "price_less", target_value: "", news_category: "investments", cron_minutes: 15, notify_telegram: true });
-                              }}
-                              className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
-                            >
-                              + Добавить сигнал
-                            </button>
-                          )}
+                        <td className="p-4 relative text-center">
+                          <button
+                            onClick={() => {
+                              setEditingGroup(null);
+                              setBulkSignalForm({ condition_type: "price_less", target_value: "", news_category: "", cron_minutes: 1, notify_telegram: true });
+                              setSelectedBonds(new Set([item.bond.id]));
+                              setBulkModalOpen(true);
+                            }}
+                            className="bg-[var(--accent)]/10 text-[var(--accent)] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[var(--accent)] hover:text-white transition-colors border border-[var(--accent)]/20 shadow-sm"
+                          >
+                            + Добавить сигнал
+                          </button>
                         </td>
                         <td className="p-4 text-right">
                           <button
@@ -557,248 +465,120 @@ export default function InvestmentsPage() {
       {/* SIGNALS TAB */}
       {mainTab === "signals" && (
         <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col mt-6">
-          <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-[var(--card)]">
+          <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-[var(--card)] relative z-10">
             <h2 className="text-[var(--foreground)] font-semibold text-lg">Активные сигналы</h2>
-            <button onClick={() => setMainTab("portfolio")} className="text-[var(--accent)] text-sm hover:underline">
-              + Добавить из портфеля
+            <button onClick={() => {
+              setEditingGroup(null);
+              setBulkSignalForm({ condition_type: "price_less", target_value: "", news_category: "", cron_minutes: 1, notify_telegram: true });
+              setSelectedBonds(new Set());
+              setBulkModalOpen(true);
+            }} className="bg-[var(--accent)] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
+              + Добавить сигнал
             </button>
           </div>
           
           {signals.length === 0 ? (
             <div className="text-center p-12">
               <p className="text-[var(--muted)]">У вас пока нет активных сигналов.</p>
-              <p className="text-[var(--muted)] text-sm mt-2">Вы можете создать сигнал, перейдя в &quot;Мой портфель&quot;.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto text-sm">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[var(--card-hover)] text-[var(--muted)] border-b border-[var(--border)]">
-                    <th className="font-medium p-4 w-[40px]">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer"
-                        onChange={(e) => {
-                          const bondIds = Array.from(new Set(signals.map(s => s.bond.id)));
-                          if (e.target.checked) setSelectedBonds(new Set(bondIds));
-                          else setSelectedBonds(new Set());
-                        }}
-                        checked={signals.length > 0 && Array.from(new Set(signals.map(s => s.bond.id))).every(id => selectedBonds.has(id))}
-                      />
-                    </th>
-                    <th className="font-medium p-4 whitespace-nowrap">Название / ISIN</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Цена</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Доходность</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Рейтинг</th>
-                    <th className="font-medium p-4 min-w-[200px]">Сигналы</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {Object.values(signals.reduce((acc, sig) => {
-                    if (!acc[sig.bond.id]) {
-                      acc[sig.bond.id] = { bond: sig.bond, signals: [] };
-                    }
-                    acc[sig.bond.id].signals.push(sig);
-                    return acc;
-                  }, {} as Record<number, { bond: SignalItem["bond"], signals: SignalItem[] }>)).map((item) => (
-                    <tr key={`bond-sig-${item.bond.id}`} className="hover:bg-[var(--card-hover)] transition-colors group cursor-pointer" onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('button')) return;
-                        const newSet = new Set(selectedBonds);
-                        if (newSet.has(item.bond.id)) newSet.delete(item.bond.id);
-                        else newSet.add(item.bond.id);
-                        setSelectedBonds(newSet);
-                    }}>
-                      <td className="p-4 w-[40px]">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer pointer-events-none"
-                          checked={selectedBonds.has(item.bond.id)}
-                          readOnly
-                        />
-                      </td>
-                      <td className="p-4 flex items-center gap-3">
-                        {(() => {
-                          const avatar = getAvatarProps(item.bond.shortname);
-                          return (
-                            <div 
-                              className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm"
-                              style={{ backgroundColor: avatar.bgColor, color: avatar.color }}
-                            >
-                              {avatar.initial}
-                            </div>
-                          );
-                        })()}
-                        <div>
-                          <p className="font-semibold text-[var(--foreground)]">{item.bond.shortname}</p>
-                          <p className="text-xs text-[var(--muted)]">{item.bond.isin}</p>
+            <div className="p-6 grid gap-4 grid-cols-1 md:grid-cols-2">
+              {(() => {
+                const groups = Object.values(signals.reduce((acc, sig) => {
+                  const key = `${sig.condition_type}_${sig.target_value}_${sig.news_category}_${sig.cron_minutes}_${sig.notify_telegram}`;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      key,
+                      condition_type: sig.condition_type,
+                      target_value: sig.target_value,
+                      news_category: sig.news_category,
+                      cron_minutes: sig.cron_minutes,
+                      notify_telegram: sig.notify_telegram,
+                      bonds: [],
+                      signals: []
+                    };
+                  }
+                  if (!acc[key].bonds.find((b: SignalItem["bond"]) => b.id === sig.bond.id)) {
+                    acc[key].bonds.push(sig.bond);
+                  }
+                  acc[key].signals.push(sig);
+                  return acc;
+                }, {} as Record<string, SignalGroup>));
+
+                return groups.map((group) => {
+                  let badgeColor = "bg-[var(--card-hover)]";
+                  if (group.condition_type.includes("greater") || group.condition_type.includes("grow")) badgeColor = "bg-green-500/10 text-green-500 border-green-500/20";
+                  if (group.condition_type.includes("less") || group.condition_type.includes("drop")) badgeColor = "bg-red-500/10 text-red-500 border-red-500/20";
+                  if (group.condition_type === "news_mention") badgeColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+
+                  return (
+                    <div key={group.key} className="flex flex-col justify-between bg-[var(--background)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--accent)] transition-colors relative group">
+                      <div>
+                        <div className="flex items-center justify-between mb-3 gap-4">
+                          <h3 className="font-semibold text-[var(--foreground)] text-base break-words">
+                            {group.condition_type === "price_less" && `Цена упадет < ${group.target_value}`}
+                            {group.condition_type === "price_greater" && `Цена вырастет > ${group.target_value}`}
+                            {group.condition_type === "yield_greater" && `Доходность > ${group.target_value}%`}
+                            {group.condition_type === "yield_less" && `Доходность < ${group.target_value}%`}
+                            {group.condition_type === "price_change_drop_greater" && `Дневное падение > ${group.target_value}%`}
+                            {group.condition_type === "price_change_grow_greater" && `Дневной рост > ${group.target_value}%`}
+                            {group.condition_type === "news_mention" && (group.news_category ? `Упоминание в новостях (Кат: ${getCategoryDef(group.news_category)?.label || group.news_category})` : "Упоминание в новостях (Любая категория)")}
+                          </h3>
+                          <div className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-md border ${badgeColor}`}>
+                             {group.signals.reduce((acc: number, s: SignalItem) => acc + (s.unread_count || 0), 0) > 0 ? (
+                               <span className="flex items-center gap-1.5 justify-center"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div> Активен</span>
+                             ) : "Мониторинг"}
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium text-[var(--foreground)]">
-                          {item.bond.current_price !== undefined && item.bond.current_price !== null ? `${item.bond.current_price}%` : '—'}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium text-[var(--foreground)]">
-                          {item.bond.current_yield !== undefined && item.bond.current_yield !== null ? `${item.bond.current_yield}%` : '—'}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium border ${getRatingColor(item.bond.rating_ru || "")}`}>
-                          {item.bond.rating_ru || "Нет"}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-2">
-                          {item.signals.map(sig => (
-                            <div key={sig.id} className="flex justify-between items-center gap-3 bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-1.5 hover:border-[var(--accent)] transition-colors">
-                              <Link 
-                                href={`/signals/bond/${sig.id}`}
-                                className="inline-flex flex-1 items-center space-x-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 px-2 py-1 rounded w-fit transition-colors cursor-pointer"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                                <span>
-                                  {sig.condition_type === "price_less" && `Цена < ${sig.target_value}`}
-                                  {sig.condition_type === "price_greater" && `Цена > ${sig.target_value}`}
-                                  {sig.condition_type === "yield_greater" && `Доходность > ${sig.target_value}%`}
-                                  {sig.condition_type === "yield_less" && `Доходность < ${sig.target_value}%`}
-                                  {sig.condition_type === "price_change_drop_greater" && `Падение > ${sig.target_value}%`}
-                                  {sig.condition_type === "price_change_grow_greater" && `Рост > ${sig.target_value}%`}
-                                  {sig.condition_type === "news_mention" && (sig.news_category ? `Упоминание в новостях (Категория: ${getCategoryDef(sig.news_category)?.label || sig.news_category})` : "Упоминание в новостях (Любая категория)")}
-                                </span>
-                                {sig.unread_count ? (
-                                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
-                                    {sig.unread_count}
-                                  </span>
-                                ) : null}
-                              </Link>
-                              <div className="flex items-center">
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingSignalId(sig.id);
-                                    setEditSignalForm({
-                                      condition_type: sig.condition_type,
-                                      target_value: sig.target_value ? sig.target_value.toString() : "",
-                                      news_category: sig.news_category || "",
-                                      cron_minutes: sig.cron_minutes || 1,
-                                      notify_telegram: sig.notify_telegram !== false
-                                    });
-                                  }}
-                                  className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors mr-1"
-                                  title="Редактировать сигнал"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeSignal(sig.id);
-                                  }}
-                                  className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                                  title="Удалить сигнал"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
+
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {group.bonds.map((b: SignalItem["bond"]) => (
+                            <span key={b.id} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--card-hover)] text-[var(--muted)] border border-[var(--border)]">
+                              {b.shortname}
+                            </span>
                           ))}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-[var(--border)]">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingGroup(group);
+                            setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
+                            setBulkSignalForm({
+                              condition_type: group.condition_type,
+                              target_value: group.target_value ? group.target_value.toString() : "",
+                              news_category: group.news_category || "",
+                              cron_minutes: group.cron_minutes || 1,
+                              notify_telegram: group.notify_telegram !== false
+                            });
+                            setBulkModalOpen(true);
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors border border-transparent hover:border-[var(--accent)]/20"
+                        >
+                          Настроить
+                        </button>
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm('Удалить отслеживание этого сигнала для всех выбранных бумаг?')) {
+                              const ids = group.signals.map((s: SignalItem) => s.id);
+                              await Promise.all(ids.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
+                              fetchData();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
-        </div>
-      )}
-
-      {/* EDIT SIGNAL MODAL */}
-      {editingSignalId !== null && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
-              <h3 className="font-semibold text-lg text-[var(--foreground)]">Редактировать сигнал</h3>
-              <button type="button" onClick={() => setEditingSignalId(null)} className="text-[var(--muted)] hover:text-[var(--foreground)] p-1">✕</button>
-            </div>
-            <form onSubmit={updateSignal} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Событие</label>
-                <select
-                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-                  value={editSignalForm.condition_type}
-                  onChange={e => setEditSignalForm({...editSignalForm, condition_type: e.target.value})}
-                >
-                  <option value="price_less">Достижение цены (Упадет ниже)</option>
-                  <option value="price_greater">Достижение цены (Вырастет выше)</option>
-                  <option value="yield_less">Достижение доходности (Меньше)</option>
-                  <option value="yield_greater">Достижение доходности (Больше)</option>
-                  <option value="price_change_drop_greater">Сильное падение % (за сессию)</option>
-                  <option value="price_change_grow_greater">Сильный рост % (за сессию)</option>
-                  <option value="news_mention">Упоминание названия в новостях (парсер)</option>
-                </select>
-              </div>
-              
-              {editSignalForm.condition_type !== "news_mention" && (
-                <div className="animate-fade-in">
-                  <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Значение</label>
-                  <input
-                    type="number" step="0.01" required
-                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-                    placeholder="Укажите порог"
-                    value={editSignalForm.target_value}
-                    onChange={e => setEditSignalForm({...editSignalForm, target_value: e.target.value})}
-                  />
-                </div>
-              )}
-
-              {editSignalForm.condition_type === "news_mention" && (
-                <div className="animate-fade-in space-y-4">
-                  <div>
-                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Категория новостей</label>
-                    <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-                      value={editSignalForm.news_category}
-                      onChange={e => setEditSignalForm({...editSignalForm, news_category: e.target.value})}
-                    >
-                      <option value="">Все категории (Любая)</option>
-                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => {
-                        const label = getCategoryDef(cat as string)?.label || cat;
-                        return <option key={cat as string} value={cat as string}>{label}</option>
-                      })}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Периодичность проверки</label>
-                    <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-                      value={editSignalForm.cron_minutes}
-                      onChange={e => setEditSignalForm({...editSignalForm, cron_minutes: Number(e.target.value)})}
-                    >
-                      <option value="1">Мгновенная (сразу)</option>
-                      <option value="15">Каждые 15 минут</option>
-                      <option value="60">Каждый час</option>
-                      <option value="360">Раз в 6 часов</option>
-                      <option value="1440">Раз в день</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <label className="flex items-center gap-3 cursor-pointer mt-2">
-                <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={editSignalForm.notify_telegram} onChange={e => setEditSignalForm({...editSignalForm, notify_telegram: e.target.checked})} />
-                <span className="font-medium text-sm text-[var(--foreground)]">Уведомление в Telegram</span>
-              </label>
-              
-              <div className="pt-4">
-                <button type="submit" className="w-full bg-[var(--accent)] text-white px-4 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
-                  Сохранить
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 
@@ -811,38 +591,23 @@ export default function InvestmentsPage() {
             Настроить ({selectedBonds.size})
           </button>
           
-          {mainTab === "signals" && (
-            <button 
-              onClick={async () => {
-                if (!confirm("Вы уверены, что хотите удалить ВСЕ сигналы у выбранных облигаций?")) return;
-                const signalsToDelete = signals.filter(s => selectedBonds.has(s.bond.id));
-                for (const sig of signalsToDelete) {
-                  await api.investments.removeSignal(sig.id).catch(console.error);
-                }
-                setSelectedBonds(new Set());
-                fetchData();
-              }} 
-              className="text-red-500 hover:bg-red-500/10 px-4 py-2 rounded-full font-medium transition-colors"
-            >
-              Удалить сигналы
-            </button>
-          )}
         </div>
       )}
 
-      {/* BULK SIGNAL MODAL */}
+      {/* UNIFIED SIGNAL MODAL */}
       {bulkModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
-              <h3 className="font-semibold text-lg text-[var(--foreground)]">Сигналы ({selectedBonds.size} шт.)</h3>
-              <button type="button" onClick={() => setBulkModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--foreground)] p-1">✕</button>
+          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-[var(--border)] flex justify-between items-center shrink-0">
+              <h3 className="font-semibold text-lg text-[var(--foreground)]">{editingGroup ? 'Редактировать сигнал' : 'Новый сигнал'}</h3>
+              <button type="button" onClick={() => { setBulkModalOpen(false); setEditingGroup(null); }} className="text-[var(--muted)] hover:text-[var(--foreground)] px-2 py-1 bg-[var(--card-hover)] rounded-lg">✕</button>
             </div>
-            <form onSubmit={addBulkSignals} className="p-6 space-y-4">
+            
+            <form onSubmit={saveGroupSignals} className="p-5 overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-4">
               <div>
-                <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Событие</label>
+                <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Событие</label>
                 <select
-                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
                   value={bulkSignalForm.condition_type}
                   onChange={e => setBulkSignalForm({...bulkSignalForm, condition_type: e.target.value})}
                 >
@@ -850,62 +615,99 @@ export default function InvestmentsPage() {
                   <option value="price_greater">Достижение цены (Вырастет выше)</option>
                   <option value="yield_less">Достижение доходности (Меньше)</option>
                   <option value="yield_greater">Достижение доходности (Больше)</option>
-                  <option value="price_change_drop_greater">Сильное падение % (за сессию)</option>
-                  <option value="price_change_grow_greater">Сильный рост % (за сессию)</option>
-                  <option value="news_mention">Упоминание названия в новостях (парсер)</option>
+                  <option value="price_change_drop_greater">Дневное падение &gt; %</option>
+                  <option value="price_change_grow_greater">Дневной рост &gt; %</option>
+                  <option value="news_mention">Упоминание названия в новостях</option>
                 </select>
               </div>
               
               {bulkSignalForm.condition_type !== "news_mention" && (
                 <div className="animate-fade-in">
-                  <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Значение (например: 5.5)</label>
+                  <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Значение <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded ml-1">АБСОЛЮТНОЕ</span></label>
                   <input
                     type="number" step="0.01" required
-                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
-                    placeholder="Укажите порог"
+                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
+                    placeholder="Например: 1000 или 95.5"
                     value={bulkSignalForm.target_value}
                     onChange={e => setBulkSignalForm({...bulkSignalForm, target_value: e.target.value})}
                   />
+                  <p className="text-[10px] text-[var(--muted)] mt-1.5">При установке значения для нескольких бумаг, убедитесь что указанный уровень актуален для каждой из них.</p>
                 </div>
               )}
 
               {bulkSignalForm.condition_type === "news_mention" && (
                 <div className="animate-fade-in space-y-4">
                   <div>
-                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Категория новостей (Парсер)</label>
+                    <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Категория новостей (Парсер)</label>
                     <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
                       value={bulkSignalForm.news_category}
                       onChange={e => setBulkSignalForm({...bulkSignalForm, news_category: e.target.value})}
                     >
-                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
-                        <option key={cat} value={cat as string}>{cat}</option>
-                      ))}
+                      <option value="">Все категории (Любая)</option>
+                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => {
+                        const label = getCategoryDef(cat as string)?.label || cat;
+                        return <option key={cat as string} value={cat as string}>{label}</option>
+                      })}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Периодичность проверки (Крон)</label>
+                    <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Периодичность проверки</label>
                     <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
                       value={bulkSignalForm.cron_minutes}
                       onChange={e => setBulkSignalForm({...bulkSignalForm, cron_minutes: Number(e.target.value)})}
                     >
+                      <option value="1">Мгновенная (сразу)</option>
                       <option value="15">Каждые 15 минут</option>
                       <option value="60">Каждый час</option>
                       <option value="360">Раз в 6 часов</option>
                       <option value="1440">Раз в день</option>
                     </select>
                   </div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={bulkSignalForm.notify_telegram} onChange={e => setBulkSignalForm({...bulkSignalForm, notify_telegram: e.target.checked})} />
-                    <span className="font-medium text-sm text-[var(--foreground)]">Прислать уведомление в Telegram (Бот)</span>
-                  </label>
                 </div>
               )}
               
-              <div className="pt-4">
-                <button type="submit" className="w-full bg-[var(--accent)] text-white px-4 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
-                  Установить на {selectedBonds.size} бумаг
+              <div className="pt-2 border-t border-[var(--border)]">
+                <label className="block text-sm text-[var(--foreground)] mb-3 font-semibold flex items-center justify-between">
+                  <span>Применить к облигациям</span>
+                  <span className="text-[var(--accent)] px-2 py-0.5 bg-[var(--accent)]/10 rounded-full text-[10px]">{selectedBonds.size} выбрано</span>
+                </label>
+                <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-2 custom-scrollbar border border-[var(--border)] rounded-xl p-2 bg-[var(--background)] shadow-inner">
+                  {portfolio.length === 0 ? (
+                    <p className="text-[11px] text-[var(--muted)] text-center py-2">Портфель пуст. Добавьте бумаги перед созданием сигнала.</p>
+                  ) : portfolio.map(p => (
+                    <label key={p.bond.id} className={`flex items-center gap-3 cursor-pointer px-3 py-2 rounded-lg transition-colors border ${selectedBonds.has(p.bond.id) ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30' : 'bg-[var(--card)] border-[var(--border)] hover:border-[var(--muted)]'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-[var(--border)] text-[var(--accent)] shrink-0" 
+                        checked={selectedBonds.has(p.bond.id)} 
+                        onChange={(e) => {
+                          const newSet = new Set(selectedBonds);
+                          if (e.target.checked) newSet.add(p.bond.id);
+                          else newSet.delete(p.bond.id);
+                          setSelectedBonds(newSet);
+                        }} 
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-semibold text-[var(--foreground)] leading-tight truncate block">{p.bond.shortname}</span>
+                        {bulkSignalForm.condition_type !== "news_mention" && p.bond.current_price && (
+                           <span className="text-[10px] text-[var(--muted)]">Акт. цена: <b>{p.bond.current_price}%</b></span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer mt-1 pt-3 border-t border-[var(--border)] bg-[var(--background)] p-3 rounded-xl border border-transparent hover:border-[var(--border)] transition-colors shrink-0">
+                <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={bulkSignalForm.notify_telegram} onChange={e => setBulkSignalForm({...bulkSignalForm, notify_telegram: e.target.checked})} />
+                <span className="font-medium text-[13px] text-[var(--foreground)]">Уведомление в Telegram (бот)</span>
+              </label>
+              
+              <div className="pt-2 shrink-0">
+                <button type="submit" disabled={selectedBonds.size === 0} className="w-full bg-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl text-[14px] font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
+                  {editingGroup ? 'Обновить (для ' + selectedBonds.size + ' бумаг)' : 'Создать (для ' + selectedBonds.size + ' бумаг)'}
                 </button>
               </div>
             </form>
