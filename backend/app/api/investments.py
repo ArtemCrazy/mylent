@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.api.deps import current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.bond import Bond, PortfolioBond, BondSignal
 
@@ -36,7 +36,7 @@ async def search_bonds(q: str = Query(..., min_length=2)):
 @router.get("/portfolio")
 async def get_portfolio(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get user's bond portfolio with joined bond data."""
     # Fetch portfolio
@@ -88,7 +88,7 @@ async def get_portfolio(
 async def add_to_portfolio(
     payload: Dict[str, Any],
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user)
+    user: User = Depends(get_current_user)
 ):
     """Add a bond to portfolio."""
     secid = payload.get("secid")
@@ -131,7 +131,7 @@ async def add_to_portfolio(
 async def remove_from_portfolio(
     id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user)
+    user: User = Depends(get_current_user)
 ):
     """Remove a bond from portfolio."""
     stmt = select(PortfolioBond).where(PortfolioBond.id == id, PortfolioBond.user_id == user.id)
@@ -149,7 +149,7 @@ async def remove_from_portfolio(
 async def create_signal(
     payload: Dict[str, Any],
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user)
+    user: User = Depends(get_current_user)
 ):
     """Create a price/yield signal."""
     bond_id = payload.get("bond_id")
@@ -188,7 +188,7 @@ async def create_signal(
 async def remove_signal(
     id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user)
+    user: User = Depends(get_current_user)
 ):
     """Remove a signal."""
     stmt = select(BondSignal).where(BondSignal.id == id, BondSignal.user_id == user.id)
