@@ -202,6 +202,15 @@ export const api = {
     updateSettings: (updates: Partial<AppSettings>) =>
       request<{ status: string; settings: AppSettings }>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
   },
+  investments: {
+    portfolio: () => request<any>("/investments/portfolio"),
+    addToPortfolio: (body: any) => request<any>("/investments/portfolio", { method: "POST", body: JSON.stringify(body) }),
+    removeFromPortfolio: (id: number) => request<any>(`/investments/portfolio/${id}`, { method: "DELETE" }),
+    signals: () => request<any>("/investments/signals"),
+    addSignal: (body: any) => request<any>("/investments/signals", { method: "POST", body: JSON.stringify(body) }),
+    removeSignal: (id: number) => request<any>(`/investments/signals/${id}`, { method: "DELETE" }),
+    search: (q: string) => request<any>(`/investments/search?q=${encodeURIComponent(q)}`),
+  },
 };
 
 export interface Source {

@@ -43,8 +43,7 @@ export default function InvestmentsPage() {
 
   const fetchData = async () => {
     try {
-      const res = await api._request("/api/investments/portfolio");
-      const data = await res.json();
+      const data = await api.investments.portfolio();
       setPortfolio(data.portfolio || []);
       setSignals(data.signals || []);
     } catch (e) {
@@ -61,8 +60,7 @@ export default function InvestmentsPage() {
       if (searchQuery.length > 2) {
         setIsSearching(true);
         try {
-          const res = await api._request(`/api/investments/search?q=${encodeURIComponent(searchQuery)}`);
-          const data = await res.json();
+          const data = await api.investments.search(searchQuery);
           setSearchResults(data.results || []);
         } catch (e) {
           console.error(e);
@@ -79,10 +77,7 @@ export default function InvestmentsPage() {
 
   const addToPortfolio = async (secid: string, name: string, shortname: string, isin: string) => {
     try {
-      await api._request("/api/investments/portfolio", {
-        method: "POST",
-        body: JSON.stringify({ secid, isin, name, shortname, quantity: 1, average_price: null })
-      });
+      await api.investments.addToPortfolio({ secid, isin, name, shortname, quantity: 1, average_price: null });
       fetchData();
       setSearchQuery("");
       setSearchResults([]);
@@ -94,7 +89,7 @@ export default function InvestmentsPage() {
 
   const removeFromPortfolio = async (id: number) => {
     if (confirm("Удалить из портфеля?")) {
-      await api._request(`/api/investments/portfolio/${id}`, { method: "DELETE" });
+      await api.investments.removeFromPortfolio(id);
       fetchData();
     }
   };
@@ -104,13 +99,10 @@ export default function InvestmentsPage() {
     if (!signalForm.target_value) return;
 
     try {
-      await api._request("/api/investments/signals", {
-        method: "POST",
-        body: JSON.stringify({
+      await api.investments.addSignal({
           bond_id: bondId,
           condition_type: signalForm.condition_type,
           target_value: parseFloat(signalForm.target_value)
-        })
       });
       fetchData();
       setSignalForm({ ...signalForm, target_value: "" });
@@ -122,7 +114,7 @@ export default function InvestmentsPage() {
 
   const removeSignal = async (id: number) => {
     if (confirm("Удалить сигнал?")) {
-      await api._request(`/api/investments/signals/${id}`, { method: "DELETE" });
+      await api.investments.removeSignal(id);
       fetchData();
     }
   };
