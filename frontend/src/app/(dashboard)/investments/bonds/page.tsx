@@ -623,64 +623,75 @@ export default function InvestmentsPage() {
       {/* UNIFIED SIGNAL MODAL */}
       {bulkModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-[var(--border)] flex justify-between items-center shrink-0">
-              <h3 className="font-semibold text-lg text-[var(--foreground)]">{editingGroup ? 'Редактировать сигнал' : 'Новый сигнал'}</h3>
-              <button type="button" onClick={() => { setBulkModalOpen(false); setEditingGroup(null); }} className="text-[var(--muted)] hover:text-[var(--foreground)] px-2 py-1 bg-[var(--card-hover)] rounded-lg">✕</button>
+          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-2xl shadow-black/40 w-full max-w-xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center shrink-0 bg-[var(--card)]/80 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-[var(--accent)]/10 rounded-xl text-[var(--accent)]">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/><path d="m5 7-3 5 3 5"/><path d="m19 7 3 5-3 5"/></svg>
+                 </div>
+                 <h3 className="font-bold text-xl text-[var(--foreground)]">{editingGroup ? 'Настройка сигнала' : 'Новый сигнал'}</h3>
+              </div>
+              <button type="button" onClick={() => { setBulkModalOpen(false); setEditingGroup(null); }} className="text-[var(--muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors w-8 h-8 flex flex-col items-center justify-center rounded-full">✕</button>
             </div>
             
-            <form onSubmit={saveGroupSignals} className="p-5 overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-4">
+            <form onSubmit={saveGroupSignals} className="overflow-y-auto custom-scrollbar flex-1 flex flex-col pb-0">
+               <div className="p-6 space-y-6 flex-1">
               <div>
-                <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Название сигнала (Текст в таблице)</label>
+                <label className="block text-xs uppercase tracking-wider font-bold text-[var(--muted)] mb-2 ml-1">Понятное название (Опционально)</label>
                 <input
                   type="text"
-                  placeholder="Опционально. Например: Покупка ОФЗ"
-                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
-                  value={bulkSignalForm.name}
+                  placeholder="Например: Покупка ОФЗ на дне"
+                  className="w-full bg-[var(--card-hover)] border border-transparent text-[var(--foreground)] rounded-xl px-4 py-3.5 outline-none focus:border-[var(--accent)] focus:bg-[var(--background)] transition-all text-sm placeholder:text-[var(--muted)]/50"
+                  value={bulkSignalForm.name || ""}
                   onChange={e => setBulkSignalForm({...bulkSignalForm, name: e.target.value})}
                 />
               </div>
               <div>
-                <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Событие</label>
+                <label className="block text-xs uppercase tracking-wider font-bold text-[var(--muted)] mb-2 ml-1">Событие-триггер</label>
                 <select
-                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
+                  className="w-full bg-[var(--card-hover)] border border-transparent text-[var(--foreground)] rounded-xl px-4 py-3.5 outline-none focus:border-[var(--accent)] focus:bg-[var(--background)] transition-all text-sm appearance-none font-medium cursor-pointer"
                   value={bulkSignalForm.condition_type}
                   onChange={e => setBulkSignalForm({...bulkSignalForm, condition_type: e.target.value})}
                 >
-                  <option value="price_less">Достижение цены (Упадет ниже)</option>
-                  <option value="price_greater">Достижение цены (Вырастет выше)</option>
-                  <option value="yield_less">Достижение доходности (Меньше)</option>
-                  <option value="yield_greater">Достижение доходности (Больше)</option>
-                  <option value="price_change_drop_greater">Дневное падение &gt; %</option>
-                  <option value="price_change_grow_greater">Дневной рост &gt; %</option>
-                  <option value="news_mention">Упоминание названия в новостях</option>
+                  <option value="price_less">📉 Цена упадет ниже указанной</option>
+                  <option value="price_greater">📈 Цена вырастет выше указанной</option>
+                  <option value="yield_less">🔻 Доходность станет меньше</option>
+                  <option value="yield_greater">🚀 Доходность станет больше</option>
+                  <option value="price_change_drop_greater">⚠️ Дневное падение &gt; %</option>
+                  <option value="price_change_grow_greater">Взрывной рост &gt; % за день</option>
+                  <option value="news_mention">📰 Упоминание в новостях парсера</option>
                 </select>
               </div>
               
               {bulkSignalForm.condition_type !== "news_mention" && (
-                <div className="animate-fade-in">
-                  <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Значение <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded ml-1">АБСОЛЮТНОЕ</span></label>
-                  <input
-                    type="number" step="0.01" required
-                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
-                    placeholder="Например: 1000 или 95.5"
-                    value={bulkSignalForm.target_value}
-                    onChange={e => setBulkSignalForm({...bulkSignalForm, target_value: e.target.value})}
-                  />
-                  <p className="text-[10px] text-[var(--muted)] mt-1.5">При установке значения для нескольких бумаг, убедитесь что указанный уровень актуален для каждой из них.</p>
+                <div className="animate-fade-in p-4 bg-[var(--accent)]/5 rounded-xl border border-[var(--accent)]/10">
+                  <label className="block text-xs tracking-wider uppercase font-bold text-[var(--accent)] mb-3">Целевое значение</label>
+                  <div className="flex items-center">
+                    <input
+                      type="number" step="0.01" required
+                      className="flex-1 bg-[var(--background)] border border-[var(--accent)]/20 text-[var(--foreground)] rounded-l-xl px-4 py-3 outline-none focus:border-[var(--accent)] transition-all font-semibold font-mono text-lg placeholder:text-[var(--muted)]/30"
+                      placeholder="0.00"
+                      value={bulkSignalForm.target_value}
+                      onChange={e => setBulkSignalForm({...bulkSignalForm, target_value: e.target.value})}
+                    />
+                    <div className="bg-[var(--accent)] text-white px-4 py-3.5 rounded-r-xl font-bold border border-[var(--accent)]">
+                      {bulkSignalForm.condition_type.includes("price_change") ? "%" : (bulkSignalForm.condition_type.includes("yield") ? "%" : "₽")}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[var(--muted)] mt-2 italic">* При установке значения для нескольких бумаг, убедитесь что этот уровень актуален для каждой из них.</p>
                 </div>
               )}
 
               {bulkSignalForm.condition_type === "news_mention" && (
-                <div className="animate-fade-in space-y-4">
+                <div className="animate-fade-in space-y-4 p-4 bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm">
                   <div>
-                    <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Категория новостей (Парсер)</label>
+                    <label className="block text-xs uppercase tracking-wider font-bold text-[var(--muted)] mb-2 ml-1">Категория (Тег парсера)</label>
                     <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2.5 outline-none focus:border-[var(--accent)] transition-all text-sm font-medium"
                       value={bulkSignalForm.news_category}
                       onChange={e => setBulkSignalForm({...bulkSignalForm, news_category: e.target.value})}
                     >
-                      <option value="">Все категории (Любая)</option>
+                      <option value="">Все категории (Любая новость)</option>
                       {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => {
                         const label = getCategoryDef(cat as string)?.label || cat;
                         return <option key={cat as string} value={cat as string}>{label}</option>
@@ -688,62 +699,79 @@ export default function InvestmentsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-[var(--muted)] mb-1.5 font-medium">Периодичность проверки</label>
+                    <label className="block text-xs uppercase tracking-wider font-bold text-[var(--muted)] mb-2 ml-1">Частота проверок</label>
                     <select
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-sm"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-3 py-2.5 outline-none focus:border-[var(--accent)] transition-all text-sm font-medium"
                       value={bulkSignalForm.cron_minutes}
                       onChange={e => setBulkSignalForm({...bulkSignalForm, cron_minutes: Number(e.target.value)})}
                     >
-                      <option value="1">Мгновенная (сразу)</option>
-                      <option value="15">Каждые 15 минут</option>
-                      <option value="60">Каждый час</option>
-                      <option value="360">Раз в 6 часов</option>
-                      <option value="1440">Раз в день</option>
+                      <option value="1">⚡ Мгновенно (Сразу после выхода)</option>
+                      <option value="15">⏱ Каждые 15 минут</option>
+                      <option value="60">🕰 Каждый час</option>
+                      <option value="360">🌅 Раз в 6 часов</option>
+                      <option value="1440">📅 Раз в день</option>
                     </select>
                   </div>
                 </div>
               )}
               
-              <div className="pt-2 border-t border-[var(--border)]">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm text-[var(--foreground)] font-semibold flex items-center gap-2">
-                    Применить к облигациям
-                    <span className="text-[var(--accent)] px-2 py-0.5 bg-[var(--accent)]/10 rounded-full text-[10px]">{selectedBonds.size} выбрано</span>
+              <div className="pt-5 mt-2 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-[var(--foreground)] font-bold text-sm tracking-wide">
+                    Охват бумаг ({selectedBonds.size})
                   </label>
-                  <button type="button" onClick={() => setSelectedBonds(new Set(portfolio.map(p => p.bond.id)))} className="text-xs text-[var(--accent)] hover:underline font-medium">Выбрать все</button>
+                  <button type="button" onClick={() => setSelectedBonds(new Set(portfolio.map(p => p.bond.id)))} className="text-xs px-3 py-1 bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 rounded-full font-bold transition-colors">
+                    Выбрать всё
+                  </button>
                 </div>
-                <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-2 custom-scrollbar border border-[var(--border)] rounded-xl p-2 bg-[var(--background)] shadow-inner">
+                <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
                   {portfolio.length === 0 ? (
-                    <p className="text-[11px] text-[var(--muted)] text-center py-2">Портфель пуст. Добавьте бумаги перед созданием сигнала.</p>
-                  ) : portfolio.map(p => (
-                    <label key={p.bond.id} className={`flex items-center gap-3 cursor-pointer px-3 py-2 rounded-lg transition-colors border ${selectedBonds.has(p.bond.id) ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30' : 'bg-[var(--card)] border-[var(--border)] hover:border-[var(--muted)]'}`}>
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-[var(--border)] text-[var(--accent)] shrink-0" 
-                        checked={selectedBonds.has(p.bond.id)} 
-                        onChange={(e) => {
-                          const newSet = new Set(selectedBonds);
-                          if (e.target.checked) newSet.add(p.bond.id);
-                          else newSet.delete(p.bond.id);
-                          setSelectedBonds(newSet);
-                        }} 
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[13px] font-semibold text-[var(--foreground)] leading-tight truncate block">{p.bond.shortname}</span>
+                    <div className="p-6 text-center border-2 border-dashed border-[var(--border)] rounded-xl">
+                      <p className="text-sm text-[var(--muted)] font-medium">Ваш портфель пуст.</p>
+                      <p className="text-xs text-[var(--muted)] mt-1">Перейдите в поиск и добавьте бумаги для применения сигнала.</p>
+                    </div>
+                  ) : portfolio.map(p => {
+                    const isChecked = selectedBonds.has(p.bond.id);
+                    return (
+                      <label key={p.bond.id} className={`group relative flex items-center justify-between p-3.5 rounded-xl transition-all cursor-pointer border ${isChecked ? 'border-[var(--accent)] bg-[var(--accent)]/5 shadow-sm' : 'border-transparent bg-[var(--card-hover)] hover:bg-[var(--card)] hover:border-[var(--border)] hover:shadow-sm'}`}>
+                        <div className="flex items-center gap-4 custom-control">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded border border-[var(--border)] text-[var(--accent)] shrink-0 focus:ring-0 checked:bg-[var(--accent)] bg-[var(--background)] transition-all cursor-pointer" 
+                            checked={isChecked} 
+                            onChange={(e) => {
+                              const newSet = new Set(selectedBonds);
+                              if (e.target.checked) newSet.add(p.bond.id);
+                              else newSet.delete(p.bond.id);
+                              setSelectedBonds(newSet);
+                            }} 
+                          />
+                          <div className="flex flex-col">
+                            <span className={`font-semibold text-sm transition-colors ${isChecked ? 'text-[var(--accent)]' : 'text-[var(--foreground)]'}`}>{p.bond.shortname}</span>
+                            <span className="text-[11px] text-[var(--muted)] font-medium mt-0.5">{p.bond.isin}</span>
+                          </div>
+                        </div>
                         {bulkSignalForm.condition_type !== "news_mention" && p.bond.current_price && (
-                           <span className="text-[10px] text-[var(--muted)]">Акт. цена: <b>{p.bond.current_price}%</b></span>
+                           <div className="text-right">
+                             <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider font-bold mb-0.5">Акт. цена</div>
+                             <div className="text-xs font-mono font-bold text-[var(--foreground)] bg-[var(--background)] px-2 py-0.5 rounded border border-[var(--border)]">{p.bond.current_price}%</div>
+                           </div>
                         )}
-                      </div>
-                    </label>
-                  ))}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
-
-
+              </div>
               
-              <div className="pt-2 shrink-0">
-                <button type="submit" disabled={selectedBonds.size === 0} className="w-full bg-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl text-[14px] font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
-                  {editingGroup ? 'Обновить (для ' + selectedBonds.size + ' бумаг)' : 'Создать (для ' + selectedBonds.size + ' бумаг)'}
+              <div className="p-6 bg-[var(--card)] border-t border-[var(--border)] flex justify-end shrink-0">
+                <button
+                  type="submit"
+                  disabled={selectedBonds.size === 0}
+                  className="w-full bg-[var(--accent)] text-white px-6 py-3.5 rounded-xl font-bold shadow-md shadow-[var(--accent)]/20 hover:shadow-lg hover:shadow-[var(--accent)]/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all flex items-center justify-center gap-2"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  {editingGroup ? 'Сохранить изменения' : `Запустить сигнал (${selectedBonds.size})`}
                 </button>
               </div>
             </form>
