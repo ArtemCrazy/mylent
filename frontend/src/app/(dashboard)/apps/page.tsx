@@ -13,7 +13,7 @@ const apps = [
   {
     href: "/investments",
     icon: "📈",
-    title: "Инвестиции",
+    title: "Облигации",
     accent: "from-emerald-500/15 to-teal-500/5 text-emerald-400",
     description: "Следите за облигациями, получайте уведомления о достижении целевых значений доходности или цены.",
   },

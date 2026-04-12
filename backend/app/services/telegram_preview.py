@@ -76,6 +76,8 @@ async def _get_info_impl(username: str) -> dict[str, Any]:
             with urllib.request.urlopen(req, timeout=5.0) as response:
                 html = response.read().decode('utf-8', errors='ignore')
                 match = re.search(r'<meta property="og:image" content="(https://[^"]+)"', html)
+                if not match:
+                    match = re.search(r'<img class="tgme_page_photo_image" src="(https://[^"]+)"', html)
                 if match:
                     img_url = match.group(1)
                     if "t_logo" not in img_url.lower():  # Игнорируем стандартное лого Telegram

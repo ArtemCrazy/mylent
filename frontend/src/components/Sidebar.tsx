@@ -492,8 +492,8 @@ export function Sidebar() {
             if (showInvestments) {
               const settingsIdx = dynamicNav.findIndex(i => i.href === '/settings');
               dynamicNav.splice(settingsIdx, 0, {
-                href: "/investments",
-                label: "Инвестиции",
+                href: "/investments/bonds",
+                label: "Облигации",
                 icon: (
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
                     <path d="M2 13.692c0-.398.34-.731.736-.723 3.652.073 6.91-1.63 9.4-4.887a.75.75 0 011.085-.102l2.671 2.378 2.302-2.301a.75.75 0 111.06 1.06l-2.83 2.83a.75.75 0 01-1.045.016l-2.617-2.329c-2.075 2.898-5.008 4.394-8.083 4.417A.75.75 0 012 13.692z" />
