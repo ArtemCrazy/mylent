@@ -44,8 +44,8 @@ export default function InvestmentsPage() {
   const fetchData = async () => {
     try {
       const data = await api.investments.portfolio();
-      setPortfolio(data.portfolio || []);
-      setSignals(data.signals || []);
+      setPortfolio((data.portfolio as PortfolioItem[]) || []);
+      setSignals((data.signals as SignalItem[]) || []);
     } catch (e) {
       console.error(e);
     }

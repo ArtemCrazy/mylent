@@ -203,13 +203,13 @@ export const api = {
       request<{ status: string; settings: AppSettings }>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
   },
   investments: {
-    portfolio: () => request<any>("/investments/portfolio"),
-    addToPortfolio: (body: any) => request<any>("/investments/portfolio", { method: "POST", body: JSON.stringify(body) }),
-    removeFromPortfolio: (id: number) => request<any>(`/investments/portfolio/${id}`, { method: "DELETE" }),
-    signals: () => request<any>("/investments/signals"),
-    addSignal: (body: any) => request<any>("/investments/signals", { method: "POST", body: JSON.stringify(body) }),
-    removeSignal: (id: number) => request<any>(`/investments/signals/${id}`, { method: "DELETE" }),
-    search: (q: string) => request<any>(`/investments/search?q=${encodeURIComponent(q)}`),
+    portfolio: () => request<{ portfolio?: unknown[], signals?: unknown[] }>("/investments/portfolio"),
+    addToPortfolio: (body: { secid: string, isin: string, name: string, shortname: string, quantity: number, average_price: number | null }) => request<void>("/investments/portfolio", { method: "POST", body: JSON.stringify(body) }),
+    removeFromPortfolio: (id: number) => request<void>(`/investments/portfolio/${id}`, { method: "DELETE" }),
+    signals: () => request<{ signals?: unknown[] }>("/investments/signals"),
+    addSignal: (body: { bond_id: number, condition_type: string, target_value: number }) => request<void>("/investments/signals", { method: "POST", body: JSON.stringify(body) }),
+    removeSignal: (id: number) => request<void>(`/investments/signals/${id}`, { method: "DELETE" }),
+    search: (q: string) => request<{ results?: [string, string, string, string][] }>(`/investments/search?q=${encodeURIComponent(q)}`),
   },
 };
 
