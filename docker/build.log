@@ -1,0 +1,93 @@
+time="2026-03-21T19:26:54Z" level=warning msg="Docker Compose is configured to build using Bake, but buildx isn't installed"
+#0 building with "default" instance using docker driver
+
+#1 [frontend internal] load build definition from Dockerfile.frontend
+#1 transferring dockerfile: 833B done
+#1 DONE 0.0s
+
+#2 [frontend internal] load metadata for docker.io/library/node:20-alpine
+#2 DONE 0.0s
+
+#3 [frontend internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [frontend base 1/1] FROM docker.io/library/node:20-alpine
+#4 DONE 0.0s
+
+#5 [frontend internal] load build context
+#5 transferring context: 3.42kB 0.0s done
+#5 DONE 0.0s
+
+#6 [frontend deps 2/3] COPY frontend/package.json frontend/package-lock.json* ./
+#6 CACHED
+
+#7 [frontend deps 3/3] RUN npm ci
+#7 CACHED
+
+#8 [frontend builder 2/4] COPY --from=deps /app/node_modules ./node_modules
+#8 CACHED
+
+#9 [frontend deps 1/3] WORKDIR /app
+#9 CACHED
+
+#10 [frontend builder 3/4] COPY frontend/ .
+#10 CACHED
+
+#11 [frontend builder 4/4] RUN npm run build
+#11 0.855 
+#11 0.855 > frontend@0.1.0 build
+#11 0.855 > next build
+#11 0.855 
+#11 2.000   ▲ Next.js 14.2.35
+#11 2.002 
+#11 2.023    Creating an optimized production build ...
+#11 24.44  ✓ Compiled successfully
+#11 24.44    Linting and checking validity of types ...
+#11 29.80 
+#11 29.80 ./src/app/(dashboard)/digests/[id]/page.tsx
+#11 29.80 44:6  Warning: React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+#11 29.80 
+#11 29.80 ./src/app/(dashboard)/sources/page.tsx
+#11 29.80 369:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#11 29.80 573:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#11 29.80 
+#11 29.80 ./src/components/PostCard.tsx
+#11 29.80 65:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#11 29.80 135:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#11 29.80 197:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#11 29.80 
+#11 29.80 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+#11 32.33 Failed to compile.
+#11 32.33 
+#11 32.33 ./src/components/PostCard.tsx:95:38
+#11 32.33 Type error: Property 'type' does not exist on type 'PostSourceRef'.
+#11 32.33 
+#11 32.33 [0m [90m 93 |[39m   [36mconst[39m media [33m=[39m parseMedia(post[33m.[39mmedia_json)[33m;[39m[0m
+#11 32.33 [0m [90m 94 |[39m[0m
+#11 32.33 [0m[31m[1m>[22m[39m[90m 95 |[39m   [36mconst[39m isNonTelegram [33m=[39m post[33m.[39msource[33m?[39m[33m.[39mtype [33m!==[39m [32m"telegram"[39m[33m;[39m[0m
+#11 32.33 [0m [90m    |[39m                                      [31m[1m^[22m[39m[0m
+#11 32.33 [0m [90m 96 |[39m[0m
+#11 32.33 [0m [90m 97 |[39m   [36masync[39m [36mfunction[39m handleFavorite() {[0m
+#11 32.33 [0m [90m 98 |[39m     [36mif[39m (toggling) [36mreturn[39m[33m;[39m[0m
+#11 32.38 Next.js build worker exited with code: 1 and signal: null
+#11 32.41 npm notice
+#11 32.41 npm notice New major version of npm available! 10.8.2 -> 11.12.0
+#11 32.41 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.0
+#11 32.41 npm notice To update run: npm install -g npm@11.12.0
+#11 32.41 npm notice
+#11 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [frontend builder 4/4] RUN npm run build:
+32.33 [0m [90m    |[39m                                      [31m[1m^[22m[39m[0m
+32.33 [0m [90m 96 |[39m[0m
+32.33 [0m [90m 97 |[39m   [36masync[39m [36mfunction[39m handleFavorite() {[0m
+32.33 [0m [90m 98 |[39m     [36mif[39m (toggling) [36mreturn[39m[33m;[39m[0m
+32.38 Next.js build worker exited with code: 1 and signal: null
+32.41 npm notice
+32.41 npm notice New major version of npm available! 10.8.2 -> 11.12.0
+32.41 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.0
+32.41 npm notice To update run: npm install -g npm@11.12.0
+32.41 npm notice
+------
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1

@@ -71,7 +71,12 @@ function Lightbox({ src, type, onClose }: { src: string; type: "photo" | "video"
   );
 }
 
-export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post; isNew?: boolean; onToggleFavorite?: (post: Post) => void }) {
+export function PostCard({ post, isNew = false, onToggleFavorite, onTitleClick }: { 
+  post: Post; 
+  isNew?: boolean; 
+  onToggleFavorite?: (post: Post) => void;
+  onTitleClick?: (url: string) => void;
+}) {
   const rawText = post.raw_text || "";
   const htmlText = post.cleaned_text || "";
   const hasHtml = htmlText.includes("<a ") || htmlText.includes("<b>") || htmlText.includes("<i>");
@@ -86,6 +91,8 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
   const avatar = post.source ? getSourceAvatar(post.source.config_json) : null;
   const categoryLabel = post.source ? getCategoryLabel(post.source.category) : "";
   const media = parseMedia(post.media_json);
+
+  const isNonTelegram = post.source?.type !== "telegram";
 
   async function handleFavorite() {
     if (toggling) return;
@@ -103,6 +110,13 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
     const preview = (post.preview_text || rawText).slice(0, 200);
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(preview)}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function handleTitleClick(e: React.MouseEvent) {
+    if (isNonTelegram && post.original_url && onTitleClick) {
+      e.preventDefault();
+      onTitleClick(post.original_url);
+    }
   }
 
   return (
@@ -144,7 +158,13 @@ export function PostCard({ post, isNew = false, onToggleFavorite }: { post: Post
         {/* Text */}
         <div className="mb-3">
           {post.title?.trim() && (
-            <h3 className="font-medium text-[var(--foreground)] mb-1">{post.title}</h3>
+            <h3 className={`font-medium text-[var(--foreground)] mb-1 ${isNonTelegram && post.original_url ? "cursor-pointer hover:text-[var(--accent)] transition-colors" : ""}`} onClick={handleTitleClick}>
+              {isNonTelegram && post.original_url ? (
+                  <a href={post.original_url} target="_blank" rel="noopener noreferrer" onClick={handleTitleClick}>
+                      {post.title}
+                  </a>
+              ) : post.title}
+            </h3>
           )}
           {hasHtml ? (
             <div

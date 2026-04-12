@@ -25,7 +25,7 @@ _data_dir = os.environ.get("TELEGRAM_SESSION_PATH", "./data/telegram_session")
 _data_dir = os.path.dirname(_data_dir) if "/" in _data_dir else "./data"
 MEDIA_DIR = os.path.join(_data_dir, "media")
 
-MAX_AGE_DAYS = int(os.environ.get("CLEANUP_MAX_AGE_DAYS", "10"))
+MAX_AGE_DAYS = int(os.environ.get("CLEANUP_MAX_AGE_DAYS", "5"))
 
 
 def _delete_media_files(media_json: str | None, source_id: int | None) -> int:

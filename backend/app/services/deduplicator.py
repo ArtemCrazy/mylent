@@ -2,6 +2,7 @@ import json
 import logging
 import asyncio
 import concurrent.futures
+import time
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.post import Post
@@ -10,18 +11,37 @@ from app.models.source import Source
 logger = logging.getLogger(__name__)
 
 model = None
+_MODEL_LOAD_DISABLED_UNTIL = 0.0
+_MODEL_RETRY_SECONDS = 1800
 pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 def get_model():
-    global model
+    global model, _MODEL_LOAD_DISABLED_UNTIL
+    if model is False and time.monotonic() < _MODEL_LOAD_DISABLED_UNTIL:
+        return None
     if model is None:
         try:
             from sentence_transformers import SentenceTransformer
             logger.info("Loading SentenceTransformer model 'paraphrase-multilingual-MiniLM-L12-v2'...")
-            model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            # Do not block sync on external downloads. If the model is not cached locally,
+            # we temporarily disable semantic deduplication and continue importing posts.
+            model = SentenceTransformer(
+                "paraphrase-multilingual-MiniLM-L12-v2",
+                local_files_only=True,
+            )
             logger.info("SentenceTransformer loaded successfully.")
         except ImportError:
             logger.error("sentence-transformers not installed.")
+            model = False
+            _MODEL_LOAD_DISABLED_UNTIL = time.monotonic() + _MODEL_RETRY_SECONDS
+            return None
+        except Exception as exc:
+            logger.warning(
+                "Semantic deduplication disabled: local SentenceTransformer cache is unavailable (%s).",
+                exc,
+            )
+            model = False
+            _MODEL_LOAD_DISABLED_UNTIL = time.monotonic() + _MODEL_RETRY_SECONDS
             return None
     return model
 

@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type Settings } from "@/lib/api";
+
+import { api, type AppSettings, type Settings } from "@/lib/api";
 
 function TelegramSection() {
   const [status, setStatus] = useState<{ authorized: boolean; has_credentials: boolean; error?: string } | null>(null);
@@ -159,14 +161,43 @@ function TelegramSection() {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [savingWeather, setSavingWeather] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.settings.get().then(setSettings).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    Promise.all([api.settings.get(), api.apps.getSettings()])
+      .then(([baseSettings, currentAppSettings]) => {
+        setSettings(baseSettings);
+        setAppSettings(currentAppSettings);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (error) {
+  async function toggleWeather(enabled: boolean) {
+    if (!appSettings) return;
+    setSavingWeather(true);
+    setError(null);
+
+    try {
+      const result = await api.apps.updateSettings({
+        weather: {
+          ...(appSettings.weather || {}),
+          enabled,
+        },
+      });
+      setAppSettings(result.settings);
+      window.dispatchEvent(new Event("app_settings_updated"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось обновить настройки погоды.");
+    } finally {
+      setSavingWeather(false);
+    }
+  }
+
+  if (error && !settings) {
     return (
       <div className="p-8">
         <p className="text-red-400">Ошибка: {error}</p>
@@ -174,7 +205,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (loading || !settings) {
+  if (loading || !settings || !appSettings) {
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="h-8 w-32 bg-[var(--card)] rounded animate-pulse mb-6" />
@@ -183,6 +214,8 @@ export default function SettingsPage() {
     );
   }
 
+  const weatherEnabled = appSettings.weather?.enabled !== false;
+
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <header className="mb-6">
@@ -190,7 +223,12 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--muted)]">Общие параметры и подключения</p>
       </header>
 
-      {/* Telegram */}
+      {error && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {error}
+        </div>
+      )}
+
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
           <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[var(--accent)]">
@@ -201,7 +239,37 @@ export default function SettingsPage() {
         <TelegramSection />
       </div>
 
-      {/* General settings */}
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
+        <h2 className="text-base font-semibold">Интерфейс</h2>
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-4">
+          <div>
+            <div className="font-medium">Отображать погоду</div>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Погодный виджет показывается над профилем сразу после авторизации.
+            </p>
+            <Link href="/apps/weather" className="mt-2 inline-flex text-sm text-[var(--accent)] hover:underline">
+              Настроить погоду
+            </Link>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={weatherEnabled}
+            disabled={savingWeather}
+            onClick={() => toggleWeather(!weatherEnabled)}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              weatherEnabled ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+            } ${savingWeather ? "opacity-60" : ""}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                weatherEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
         <h2 className="text-base font-semibold">Общие</h2>
         <div>

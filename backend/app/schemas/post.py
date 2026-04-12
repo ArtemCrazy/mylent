@@ -22,6 +22,7 @@ class PostSourceRef(BaseModel):
     """Минимум данных об источнике для отображения в карточке поста."""
     id: int
     title: str
+    type: str
     category: Optional[str] = None
     config_json: Optional[str] = None
 

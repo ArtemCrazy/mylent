@@ -9,7 +9,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.source import Source
 from app.models.post import Post
 from app.services.deduplicator import detect_and_mark_duplicate
-from app.services.signals import check_post_signals
+from app.services.signal_matcher import check_post_signals
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)

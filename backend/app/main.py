@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 import json
 import os
@@ -15,6 +17,8 @@ from app.models.user import User
 from app.models.source import Source
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+_STARTUP_TIMEOUT_SECONDS = 20
 
 
 def _add_missing_columns(conn):
@@ -89,13 +93,20 @@ async def _ensure_auto_setup():
         await db.commit()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: create tables if needed (for dev; use Alembic in prod)
+async def _run_startup_tasks():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_add_missing_columns)
     await _ensure_auto_setup()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup tasks are best-effort here: if they hang, we still prefer API availability.
+    try:
+        await asyncio.wait_for(_run_startup_tasks(), timeout=_STARTUP_TIMEOUT_SECONDS)
+    except Exception:
+        logger.exception("Backend startup setup failed or timed out; continuing without blocking API startup.")
     yield
     # Shutdown
     await engine.dispose()

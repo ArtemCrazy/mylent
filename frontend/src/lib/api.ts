@@ -179,11 +179,27 @@ export const api = {
       }, FETCH_TIMEOUT_LONG_MS),
   },
   apps: {
-    getSettings: () => request<{ football_leagues?: string[] }>("/apps/settings"),
+    getSettings: () => request<AppSettings>("/apps/settings"),
     footballFixtures: (date?: string) =>
       request<unknown[]>(`/apps/football/fixtures${date ? `?date=${date}` : ""}`),
-    updateSettings: (updates: { football_leagues?: string[] }) =>
-      request<unknown>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
+    weatherSearch: (q: string) =>
+      request<WeatherLocationSearchResult[]>(`/apps/weather/search?q=${encodeURIComponent(q)}`),
+    weatherForecast: (params: {
+      latitude: number;
+      longitude: number;
+      timezone?: string | null;
+      label?: string | null;
+    }) => {
+      const sp = new URLSearchParams({
+        latitude: String(params.latitude),
+        longitude: String(params.longitude),
+      });
+      if (params.timezone) sp.set("timezone", params.timezone);
+      if (params.label) sp.set("label", params.label);
+      return request<WeatherForecast>(`/apps/weather/forecast?${sp}`);
+    },
+    updateSettings: (updates: Partial<AppSettings>) =>
+      request<{ status: string; settings: AppSettings }>("/apps/settings", { method: "PATCH", body: JSON.stringify(updates) }),
   },
 };
 
@@ -218,6 +234,7 @@ export interface AIAnalysis {
 export interface PostSourceRef {
   id: number;
   title: string;
+  type: string;
   category: string | null;
   config_json: string | null;
 }
@@ -269,6 +286,102 @@ export interface DigestConfig {
   sources: SignalSourceRef[];
   last_digest: Digest | null;
   digest_count: number;
+}
+
+export interface WeatherSettings {
+  enabled?: boolean;
+  mode?: "geolocation" | "city" | null;
+  city_name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timezone?: string | null;
+  rain_alert_minutes?: 30 | 60 | 120 | 240 | 720 | null;
+  snow_alert_minutes?: 30 | 60 | 120 | 240 | 720 | null;
+  show_location?: boolean;
+  show_apparent_temperature?: boolean;
+  show_wind?: boolean;
+  show_pressure?: boolean;
+  show_magnetic_activity?: boolean;
+}
+
+export interface AppSettings {
+  football_leagues?: string[];
+  weather?: WeatherSettings;
+}
+
+export interface WeatherLocationSearchResult {
+  name: string;
+  country: string | null;
+  admin1: string | null;
+  latitude: number;
+  longitude: number;
+  timezone: string | null;
+  label: string;
+}
+
+export interface WeatherCurrent {
+  time: number | null;
+  temperature_2m: number | null;
+  apparent_temperature: number | null;
+  weather_code: number | null;
+  is_day: number | null;
+  wind_speed_10m: number | null;
+  pressure_msl: number | null;
+  precipitation: number | null;
+  rain: number | null;
+  showers: number | null;
+}
+
+export interface WeatherHourlyPoint {
+  time: number;
+  temperature_2m: number | null;
+  precipitation_probability: number | null;
+  precipitation: number | null;
+  rain: number | null;
+  showers: number | null;
+  weather_code: number | null;
+  is_day: number | null;
+  pressure_msl: number | null;
+}
+
+export interface WeatherMinutelyPoint {
+  time: number;
+  temperature_2m: number | null;
+  precipitation: number | null;
+  rain: number | null;
+  showers: number | null;
+  weather_code: number | null;
+  is_day: number | null;
+}
+
+export interface WeatherDailyPoint {
+  time: number;
+  weather_code: number | null;
+  temperature_2m_max: number | null;
+  temperature_2m_min: number | null;
+  precipitation_probability_max: number | null;
+  precipitation_sum: number | null;
+}
+
+export interface WeatherForecast {
+  location: {
+    label: string | null;
+    latitude: number;
+    longitude: number;
+    timezone: string;
+    timezone_abbreviation: string | null;
+  };
+  current: WeatherCurrent;
+  hourly: WeatherHourlyPoint[];
+  minutely: WeatherMinutelyPoint[];
+  daily: WeatherDailyPoint[];
+  magnetic_activity: {
+    kp_index: number | null;
+    level: string | null;
+    scale: string | null;
+    updated_at: string | null;
+  } | null;
+  updated_at: number;
 }
 
 export interface Settings {

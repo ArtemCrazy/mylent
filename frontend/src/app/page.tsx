@@ -5,9 +5,9 @@ import FeedPage from "@/components/FeedPage";
 export default function HomePage() {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-auto">
+        <main className="flex-1 min-w-0 overflow-y-auto pt-14 pb-16 md:pt-0 md:pb-0">
           <FeedPage />
         </main>
       </div>
