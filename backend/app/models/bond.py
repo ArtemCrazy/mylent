@@ -46,3 +46,18 @@ class BondSignal(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     bond: Mapped["Bond"] = relationship("Bond")
+    alerts: Mapped[list["BondSignalAlert"]] = relationship("BondSignalAlert", back_populates="bond_signal", cascade="all, delete-orphan", passive_deletes=True)
+
+class BondSignalAlert(Base):
+    """Triggered alert when a bond signal matches an event or news post."""
+    __tablename__ = "bond_signal_alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    bond_signal_id: Mapped[int] = mapped_column(ForeignKey("bond_signals.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id: Mapped[int | None] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), nullable=True)
+    message: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    bond_signal: Mapped["BondSignal"] = relationship("BondSignal", back_populates="alerts")
+    post: Mapped["Post"] = relationship("Post")

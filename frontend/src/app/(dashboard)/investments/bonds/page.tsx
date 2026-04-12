@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import { getCategoryDef } from "@/lib/categories";
 
 type Bond = {
   id: number;
@@ -29,6 +30,7 @@ type SignalItem = {
   news_category: string | null;
   cron_minutes: number;
   notify_telegram: boolean;
+  unread_count?: number;
   bond: { shortname: string; isin: string; id: number; current_price?: number; current_yield?: number; rating_ru?: string };
 };
 
@@ -650,7 +652,11 @@ export default function InvestmentsPage() {
                         <div className="flex flex-col gap-2">
                           {item.signals.map(sig => (
                             <div key={sig.id} className="flex justify-between items-center gap-3 bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-1.5 hover:border-[var(--accent)] transition-colors">
-                              <div className="inline-flex items-center space-x-2 text-xs bg-blue-500/10 text-blue-500 px-2 py-1 rounded w-fit">
+                              <Link 
+                                href={`/signals/bond/${sig.id}`}
+                                className="inline-flex flex-1 items-center space-x-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 px-2 py-1 rounded w-fit transition-colors cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
                                 <span>
                                   {sig.condition_type === "price_less" && `Цена < ${sig.target_value}`}
@@ -661,7 +667,12 @@ export default function InvestmentsPage() {
                                   {sig.condition_type === "price_change_grow_greater" && `Рост > ${sig.target_value}%`}
                                   {sig.condition_type === "news_mention" && `Новостной парсер`}
                                 </span>
-                              </div>
+                                {sig.unread_count ? (
+                                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                                    {sig.unread_count}
+                                  </span>
+                                ) : null}
+                              </Link>
                               <div className="flex items-center">
                                 <button 
                                   onClick={(e) => {
@@ -752,9 +763,10 @@ export default function InvestmentsPage() {
                       value={editSignalForm.news_category}
                       onChange={e => setEditSignalForm({...editSignalForm, news_category: e.target.value})}
                     >
-                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
-                        <option key={cat} value={cat as string}>{cat}</option>
-                      ))}
+                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => {
+                        const label = getCategoryDef(cat as string)?.label || cat;
+                        return <option key={cat as string} value={cat as string}>{label}</option>
+                      })}
                     </select>
                   </div>
                   <div>
@@ -764,6 +776,7 @@ export default function InvestmentsPage() {
                       value={editSignalForm.cron_minutes}
                       onChange={e => setEditSignalForm({...editSignalForm, cron_minutes: Number(e.target.value)})}
                     >
+                      <option value="1">Мгновенная (сразу)</option>
                       <option value="15">Каждые 15 минут</option>
                       <option value="60">Каждый час</option>
                       <option value="360">Раз в 6 часов</option>

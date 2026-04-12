@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.bond import Bond, PortfolioBond, BondSignal
+from app.models.bond import Bond, PortfolioBond, BondSignal, BondSignalAlert
+from app.models.post import Post
+from app.models.source import Source
 
 router = APIRouter(tags=["investments"])
 
@@ -67,6 +69,10 @@ async def get_portfolio(
             }
         })
         
+    stmt_unread = select(BondSignalAlert.bond_signal_id, func.count(BondSignalAlert.id)).where(BondSignalAlert.is_read == False).group_by(BondSignalAlert.bond_signal_id)
+    unread_res = await db.execute(stmt_unread)
+    unread_map = {row[0]: row[1] for row in unread_res.all()}
+    
     signals = []
     for sig, b in signals_rows:
         signals.append({
@@ -77,6 +83,7 @@ async def get_portfolio(
             "cron_minutes": sig.cron_minutes,
             "notify_telegram": sig.notify_telegram,
             "is_active": sig.is_active,
+            "unread_count": unread_map.get(sig.id, 0),
             "created_at": sig.created_at,
             "bond": {
                 "id": b.id,
@@ -135,6 +142,84 @@ async def add_to_portfolio(
     await db.commit()
     
     return {"status": "ok", "id": pb.id}
+
+@router.get("/signals/{id}/feed")
+async def get_bond_signal_feed(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Get chronological feed of alerts (news + price triggers)."""
+    # Verify ownership
+    stmt_check = select(BondSignal).where(BondSignal.id == id, BondSignal.user_id == user.id)
+    sig = (await db.execute(stmt_check)).scalars().first()
+    if not sig:
+        raise HTTPException(status_code=404, detail="Signal not found")
+        
+    stmt_alerts = select(BondSignalAlert, Post, Source).outerjoin(Post, BondSignalAlert.post_id == Post.id).outerjoin(Source, Post.source_id == Source.id).where(BondSignalAlert.bond_signal_id == id).order_by(BondSignalAlert.created_at.desc())
+    res_alerts = await db.execute(stmt_alerts)
+    
+    feed = []
+    for alert, post, source in res_alerts.all():
+        item = {
+            "id": alert.id,
+            "message": alert.message,
+            "is_read": alert.is_read,
+            "created_at": alert.created_at,
+            "post": None
+        }
+        if post and source:
+            item["post"] = {
+                "id": post.id,
+                "text": post.raw_text,
+                "url": post.url,
+                "original_url": post.original_url,
+                "source_title": source.title,
+                "source_slug": source.slug,
+                "created_at": post.created_at,
+                "media_files": [{"url": m.url, "type": m.media_type} for m in post.media] if hasattr(post, "media") and post.media else []
+            }
+        feed.append(item)
+
+    return {
+        "signal": {
+            "id": sig.id,
+            "condition_type": sig.condition_type,
+            "target_value": sig.target_value,
+            "news_category": sig.news_category,
+            "cron_minutes": sig.cron_minutes,
+            "notify_telegram": sig.notify_telegram,
+            "is_active": sig.is_active,
+            "created_at": sig.created_at,
+            "bond": {
+                "id": sig.bond.id,
+                "shortname": sig.bond.shortname,
+                "isin": sig.bond.isin,
+            }
+        },
+        "feed": feed
+    }
+
+@router.post("/signals/{id}/read")
+async def mark_bond_signal_read(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Mark all alerts for this bond signal as read."""
+    # Verify ownership
+    stmt_check = select(BondSignal).where(BondSignal.id == id, BondSignal.user_id == user.id)
+    sig = (await db.execute(stmt_check)).scalars().first()
+    if not sig:
+        raise HTTPException(status_code=404, detail="Signal not found")
+        
+    stmt_update = select(BondSignalAlert).where(BondSignalAlert.bond_signal_id == id, BondSignalAlert.is_read == False)
+    alerts = (await db.execute(stmt_update)).scalars().all()
+    for alert in alerts:
+        alert.is_read = True
+        
+    await db.commit()
+    return {"status": "ok"}
 
 @router.delete("/portfolio/{id}")
 async def remove_from_portfolio(

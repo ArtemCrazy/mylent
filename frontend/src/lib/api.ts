@@ -144,6 +144,7 @@ export const api = {
       request<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   },
   signals: {
+    globalFeed: () => request<{ feed: GlobalSignalFeedItem[] }>("/signals/global-feed"),
     list: () => request<Signal[]>("/signals"),
     get: (id: number) => request<Signal>(`/signals/${id}`),
     create: (body: { name: string; type?: string; source_ids?: number[]; assets?: { name: string; ticker?: string; keywords: string }[] }) =>
@@ -211,9 +212,28 @@ export const api = {
     addSignalBulk: (body: { bond_ids: number[], condition_type: string, target_value: number | null, news_category?: string, cron_minutes?: number, notify_telegram?: boolean }) => request<{status: string, created: number}>("/investments/signals/bulk", { method: "POST", body: JSON.stringify(body) }),
     updateSignal: (id: number, body: { condition_type?: string, target_value?: number | null, news_category?: string, cron_minutes?: number, notify_telegram?: boolean, is_active?: boolean }) => request<void>(`/investments/signals/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     removeSignal: (id: number) => request<void>(`/investments/signals/${id}`, { method: "DELETE" }),
+    getBondSignalFeed: (id: number) => request<{ feed: BondSignalAlert[] }>(`/investments/signals/${id}/feed`),
+    markBondSignalRead: (id: number) => request<void>(`/investments/signals/${id}/read`, { method: "POST" }),
     search: (q: string) => request<{ results?: [string, string, string, string][] }>(`/investments/search?q=${encodeURIComponent(q)}`),
   },
 };
+
+export interface BondSignalAlert {
+  id: number;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
+  post: {
+    id: number;
+    text: string;
+    url: string | null;
+    original_url: string | null;
+    source_title: string;
+    source_slug: string;
+    created_at: string;
+    media_files: { url: string; type: string }[];
+  } | null;
+}
 
 export interface Source {
   id: number;
@@ -444,4 +464,26 @@ export interface SignalAlert {
   created_at: string;
   asset: SignalAsset;
   post: SignalAlertPost;
+}
+
+export interface GlobalSignalFeedItem {
+  global_id: string;
+  type: "text" | "bond";
+  db_id: number;
+  signal_id: number;
+  is_read: boolean;
+  created_at: string;
+  origin_name: string;
+  asset_name: string | null;
+  message: string | null;
+  post: {
+    id: number;
+    text: string;
+    url: string | null;
+    original_url: string | null;
+    source_title: string;
+    source_slug: string;
+    created_at: string;
+    media_files: { url: string; type: string }[];
+  } | null;
 }

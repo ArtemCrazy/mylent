@@ -96,9 +96,9 @@ async def check_news_mentions(db, signals, since_dt, force_category=None):
     if not recent_posts:
         return
         
-    triggered_signals = []
-    text_corpus = " ".join([p.raw_text.lower() for p in recent_posts if p.raw_text])
-    
+    from app.models.bond import BondSignalAlert
+
+    triggered_count = 0
     for sig, b in signals:
         if sig.condition_type == "news_mention":
             keywords = extract_keywords_from_bond_name(b.name, b.shortname)
@@ -106,15 +106,32 @@ async def check_news_mentions(db, signals, since_dt, force_category=None):
                 # Fallback
                 keywords = [b.isin.lower()]
                 
-            # Simple keyword search in any recent post
-            for kw in keywords:
-                if kw and kw in text_corpus:
-                    triggered_signals.append((sig, b, kw))
-                    break
-                    
-    for sig, b, kw in triggered_signals:
-        logger.info(f"News Signal triggered [{sig.id}]: {b.shortname} mentioned by keyword '{kw}'")
-        sig.is_active = False
+            for post in recent_posts:
+                post_text = (post.raw_text or "").lower()
+                for kw in keywords:
+                    if kw and kw in post_text:
+                        # Check if this exact post was already alerted for this signal
+                        stmt_check = select(BondSignalAlert).where(
+                            BondSignalAlert.bond_signal_id == sig.id,
+                            BondSignalAlert.post_id == post.id
+                        )
+                        res_check = await db.execute(stmt_check)
+                        if not res_check.scalars().first():
+                            # Create an alert
+                            alert = BondSignalAlert(
+                                bond_signal_id=sig.id,
+                                post_id=post.id,
+                                message=f"Найдено упоминание: {kw}",
+                                is_read=False
+                            )
+                            db.add(alert)
+                            logger.info(f"News Signal triggered [{sig.id}]: {b.shortname} mentioned by keyword '{kw}' in post {post.id}")
+                            triggered_count += 1
+                            # Do NOT set sig.is_active = False for news mentions; let them be continuous.
+                        break
+                        
+    if triggered_count > 0:
+        logger.info(f"Created {triggered_count} new news mention alerts.")
 
 async def check_signals():
     async with AsyncSessionLocal() as db:
@@ -203,7 +220,18 @@ async def check_signals():
                     
                 if triggered:
                     logger.info(f"Signal triggered [{sig.id}]: {b.shortname} condition {sig.condition_type} {sig.target_value} (Current: {val})")
-                    # In MyLent context, we'll deactivate it and log.
+                    
+                    from app.models.bond import BondSignalAlert
+                    # Check if recently triggered to prevent duplicate alerts despite deactivation? No, we deactivate immediately.
+                    alert = BondSignalAlert(
+                        bond_signal_id=sig.id,
+                        post_id=None,
+                        message=f"Условие сработало: {sig.condition_type} = {sig.target_value} (текущее: {val})",
+                        is_read=False
+                    )
+                    db.add(alert)
+                    
+                    # Deactivate price signals so they don't spam
                     sig.is_active = False
                     # TODO: If sig.notify_telegram is true, invoke Tg alert
 

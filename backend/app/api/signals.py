@@ -8,6 +8,8 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, DbSession
 from app.models.signal import Signal, SignalSource, SignalAsset, SignalAlert
 from app.models.source import Source
+from app.models.post import Post
+from app.models.bond import BondSignal, BondSignalAlert
 from app.schemas.signal import (
     SignalCreate, SignalUpdate, SignalResponse, SignalSourceRef,
     SignalAssetCreate, SignalAssetResponse,
@@ -46,6 +48,94 @@ async def unread_alerts_count(user: CurrentUser, db: DbSession):
         .where(Signal.user_id == user.id, SignalAlert.is_read == False)
     )
     return {"count": result.scalar() or 0}
+
+@router.get("/global-feed")
+async def get_global_feed(user: CurrentUser, db: DbSession, limit: int = 50):
+    """Aggregate all unread alerts across text signals and bond signals."""
+    # 1. Fetch text signals
+    sig_res = await db.execute(select(Signal.id).where(Signal.user_id == user.id))
+    user_sig_ids = sig_res.scalars().all()
+    
+    text_alerts = []
+    if user_sig_ids:
+        res = await db.execute(
+            select(SignalAlert)
+            .where(SignalAlert.signal_id.in_(user_sig_ids))
+            .options(
+                selectinload(SignalAlert.asset),
+                selectinload(SignalAlert.signal),
+                selectinload(SignalAlert.post).selectinload(Post.source),
+            )
+            .order_by(SignalAlert.created_at.desc())
+            .limit(limit)
+        )
+        text_alerts = list(res.scalars().all())
+
+    # 2. Fetch bond signals
+    bsig_res = await db.execute(select(BondSignal.id).where(BondSignal.user_id == user.id))
+    user_bsig_ids = bsig_res.scalars().all()
+    
+    bond_alerts = []
+    if user_bsig_ids:
+        res2 = await db.execute(
+            select(BondSignalAlert)
+            .where(BondSignalAlert.bond_signal_id.in_(user_bsig_ids))
+            .options(
+                selectinload(BondSignalAlert.bond_signal).joinedload(BondSignal.bond),
+                selectinload(BondSignalAlert.post).selectinload(Post.source),
+            )
+            .order_by(BondSignalAlert.created_at.desc())
+            .limit(limit)
+        )
+        bond_alerts = list(res2.scalars().all())
+    
+    # 3. Combine and serialize
+    unified = []
+    
+    def _serialize_post(post):
+        if not post: return None
+        return {
+            "id": post.id,
+            "text": post.raw_text,
+            "url": post.url,
+            "original_url": post.original_url,
+            "source_title": post.source.title if post.source else None,
+            "source_slug": post.source.slug if post.source else None,
+            "created_at": post.created_at,
+            "media_files": [{"url": m.url, "type": m.media_type} for m in post.media] if hasattr(post, "media") and post.media else []
+        }
+
+    for a in text_alerts:
+        unified.append({
+            "global_id": f"text_{a.id}",
+            "type": "text",
+            "db_id": a.id,
+            "signal_id": a.signal_id,
+            "is_read": a.is_read,
+            "created_at": a.created_at,
+            "origin_name": a.signal.name,
+            "asset_name": a.asset.name if a.asset else None,
+            "message": f"Совпадение: {a.matched_keyword}",
+            "post": _serialize_post(a.post)
+        })
+        
+    for a in bond_alerts:
+        b_name = a.bond_signal.bond.shortname if getattr(a.bond_signal, "bond", None) else "Облигация"
+        unified.append({
+            "global_id": f"bond_{a.id}",
+            "type": "bond",
+            "db_id": a.id,
+            "signal_id": a.bond_signal_id,
+            "is_read": a.is_read,
+            "created_at": a.created_at,
+            "origin_name": b_name,
+            "asset_name": b_name,
+            "message": a.message,
+            "post": _serialize_post(a.post)
+        })
+        
+    unified.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"feed": unified[:limit]}
 
 
 # ── CRUD Signals ──
