@@ -53,8 +53,8 @@ export default function SignalsPage() {
   const [editSignalForm, setEditSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
     condition_type: "price_less",
     target_value: "",
-    news_category: "investments",
-    cron_minutes: 15,
+    news_category: "",
+    cron_minutes: 1,
     notify_telegram: true
   });
 
@@ -433,7 +433,7 @@ export default function SignalsPage() {
                               {sig.condition_type === "yield_less" && `Доходность < ${sig.target_value}%`}
                               {sig.condition_type === "price_change_drop_greater" && `Падение > ${sig.target_value}%`}
                               {sig.condition_type === "price_change_grow_greater" && `Рост > ${sig.target_value}%`}
-                              {sig.condition_type === "news_mention" && `Упоминание в новостях (Категория: ${sig.news_category || "investments"})`}
+                              {sig.condition_type === "news_mention" && (sig.news_category ? `Упоминание в новостях (Категория: ${getCategoryDef(sig.news_category)?.label || sig.news_category})` : "Упоминание в новостях (Любая категория)")}
                             </div>
                           </div>
                           <button 
@@ -444,8 +444,8 @@ export default function SignalsPage() {
                               setEditSignalForm({
                                 condition_type: sig.condition_type,
                                 target_value: sig.target_value ? sig.target_value.toString() : "",
-                                news_category: sig.news_category || "investments",
-                                cron_minutes: sig.cron_minutes || 15,
+                                news_category: sig.news_category || "",
+                                cron_minutes: sig.cron_minutes || 1,
                                 notify_telegram: sig.notify_telegram !== false
                               });
                             }}
@@ -522,6 +522,7 @@ export default function SignalsPage() {
                           value={editSignalForm.news_category}
                           onChange={e => setEditSignalForm({...editSignalForm, news_category: e.target.value})}
                         >
+                          <option value="">Все категории (Любая)</option>
                           {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => {
                             const label = getCategoryDef(cat as string)?.label || cat;
                             return <option key={cat as string} value={cat as string}>{label}</option>
