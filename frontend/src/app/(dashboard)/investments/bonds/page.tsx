@@ -196,19 +196,19 @@ export default function InvestmentsPage() {
       };
 
       if (editingGroup) {
-         const oldBondIds = new Set(editingGroup.bonds.map((b: any) => b.id));
+         const oldBondIds = new Set(editingGroup.bonds.map((b: SignalItem["bond"]) => b.id));
          const bondsToKeep = Array.from(selectedBonds).filter(id => oldBondIds.has(id));
          const bondsToAdd = Array.from(selectedBonds).filter(id => !oldBondIds.has(id));
-         const bondsToRemove = editingGroup.bonds.filter((b: any) => !selectedBonds.has(b.id));
+         const bondsToRemove = editingGroup.bonds.filter((b: SignalItem["bond"]) => !selectedBonds.has(b.id));
 
          // Remove unchecked
-         const signalIdsToDelete = bondsToRemove.map((b: any) => editingGroup.signals.find((s: any) => s.bond.id === b.id)?.id).filter(Boolean) as number[];
+         const signalIdsToDelete = bondsToRemove.map((b: SignalItem["bond"]) => editingGroup.signals.find((s: SignalItem) => s.bond.id === b.id)?.id).filter(Boolean) as number[];
          if (signalIdsToDelete.length > 0) {
             await Promise.all(signalIdsToDelete.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
          }
 
          // Update existing
-         const signalIdsToUpdate = bondsToKeep.map((bond_id: number) => editingGroup.signals.find((s: any) => s.bond.id === bond_id)?.id).filter(Boolean) as number[];
+         const signalIdsToUpdate = bondsToKeep.map((bond_id: number) => editingGroup.signals.find((s: SignalItem) => s.bond.id === bond_id)?.id).filter(Boolean) as number[];
          if (signalIdsToUpdate.length > 0) {
             await Promise.all(signalIdsToUpdate.map((id: number) => api.investments.updateSignal(id, payload).catch(()=>{})));
          }
