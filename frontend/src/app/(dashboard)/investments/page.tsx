@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 
 type Bond = {
@@ -45,7 +45,7 @@ export default function InvestmentsPage() {
     target_value: "",
   });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const data = await api.investments.portfolio();
       setPortfolio((data.portfolio as PortfolioItem[]) || []);
@@ -53,11 +53,11 @@ export default function InvestmentsPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -77,6 +77,7 @@ export default function InvestmentsPage() {
     }, 500);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   const addToPortfolio = async (secid: string, name: string, shortname: string, isin: string) => {
@@ -211,7 +212,7 @@ export default function InvestmentsPage() {
                   {portfolio.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center p-8 text-[var(--muted)]">
-                        Портфель пуст. Перейдите в "Поиск активов", чтобы добавить облигации.
+                        Портфель пуст. Перейдите в &quot;Поиск активов&quot;, чтобы добавить облигации.
                       </td>
                     </tr>
                   ) : (
@@ -353,7 +354,7 @@ export default function InvestmentsPage() {
           {signals.length === 0 ? (
             <div className="text-center p-12 border border-[var(--border)] border-dashed rounded-xl">
               <p className="text-[var(--muted)]">У вас пока нет активных сигналов.</p>
-              <p className="text-[var(--muted)] text-sm mt-2">Вы можете создать сигнал, перейдя в "Мой портфель". Бот уведомит вас, когда цена достигнет цели.</p>
+              <p className="text-[var(--muted)] text-sm mt-2">Вы можете создать сигнал, перейдя в &quot;Мой портфель&quot;. Бот уведомит вас, когда цена достигнет цели.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
