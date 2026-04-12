@@ -613,7 +613,7 @@ export default function InvestmentsPage() {
       {/* UNIFIED SIGNAL MODAL */}
       {bulkModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
             <div className="p-5 border-b border-[var(--border)] flex justify-between items-center shrink-0">
               <h3 className="font-semibold text-lg text-[var(--foreground)]">{editingGroup ? 'Редактировать сигнал' : 'Новый сигнал'}</h3>
               <button type="button" onClick={() => { setBulkModalOpen(false); setEditingGroup(null); }} className="text-[var(--muted)] hover:text-[var(--foreground)] px-2 py-1 bg-[var(--card-hover)] rounded-lg">✕</button>
@@ -685,11 +685,14 @@ export default function InvestmentsPage() {
               )}
               
               <div className="pt-2 border-t border-[var(--border)]">
-                <label className="block text-sm text-[var(--foreground)] mb-3 font-semibold flex items-center justify-between">
-                  <span>Применить к облигациям</span>
-                  <span className="text-[var(--accent)] px-2 py-0.5 bg-[var(--accent)]/10 rounded-full text-[10px]">{selectedBonds.size} выбрано</span>
-                </label>
-                <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-2 custom-scrollbar border border-[var(--border)] rounded-xl p-2 bg-[var(--background)] shadow-inner">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm text-[var(--foreground)] font-semibold flex items-center gap-2">
+                    Применить к облигациям
+                    <span className="text-[var(--accent)] px-2 py-0.5 bg-[var(--accent)]/10 rounded-full text-[10px]">{selectedBonds.size} выбрано</span>
+                  </label>
+                  <button type="button" onClick={() => setSelectedBonds(new Set(portfolio.map(p => p.bond.id)))} className="text-xs text-[var(--accent)] hover:underline font-medium">Выбрать все</button>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-2 custom-scrollbar border border-[var(--border)] rounded-xl p-2 bg-[var(--background)] shadow-inner">
                   {portfolio.length === 0 ? (
                     <p className="text-[11px] text-[var(--muted)] text-center py-2">Портфель пуст. Добавьте бумаги перед созданием сигнала.</p>
                   ) : portfolio.map(p => (
@@ -716,10 +719,7 @@ export default function InvestmentsPage() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer mt-1 pt-3 border-t border-[var(--border)] bg-[var(--background)] p-3 rounded-xl border border-transparent hover:border-[var(--border)] transition-colors shrink-0">
-                <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={bulkSignalForm.notify_telegram} onChange={e => setBulkSignalForm({...bulkSignalForm, notify_telegram: e.target.checked})} />
-                <span className="font-medium text-[13px] text-[var(--foreground)]">Уведомление в Telegram (бот)</span>
-              </label>
+
               
               <div className="pt-2 shrink-0">
                 <button type="submit" disabled={selectedBonds.size === 0} className="w-full bg-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl text-[14px] font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
