@@ -11,6 +11,7 @@ type Bond = {
   shortname: string;
   current_price?: number;
   current_yield?: number;
+  rating_ru?: string;
 };
 
 type PortfolioItem = {
@@ -31,7 +32,6 @@ export default function InvestmentsPage() {
   const [mainTab, setMainTab] = useState<"portfolio" | "search" | "signals">("portfolio");
   const [assetTab, setAssetTab] = useState<"bonds" | "stocks">("bonds");
 
-  // Helper to generate consistent colors based on a string
   const getAvatarProps = (name: string) => {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -44,6 +44,15 @@ export default function InvestmentsPage() {
         bgColor: `hsl(${h}, 70%, 90%)`,
         darkBgColor: `hsl(${h}, 50%, 20%)`
     };
+  };
+
+  const getRatingColor = (rating: string) => {
+    const raw = rating.toUpperCase();
+    if (raw.includes("AAA") || raw.includes("AA")) return "bg-green-500/10 text-green-500 border-green-500/20";
+    if (raw.includes("BBB") || raw === "RUA-" || raw === "RUA" || raw === "RUA+") return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+    if (raw.includes("BB") || raw === "RUB-" || raw === "RUB" || raw === "RUB+") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+    if (raw.includes("C") || raw.includes("D")) return "bg-red-500/10 text-red-500 border-red-500/20";
+    return "bg-[var(--card-hover)] text-[var(--muted)] border-[var(--border)]";
   };
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -278,6 +287,7 @@ export default function InvestmentsPage() {
                     <th className="font-medium p-4 whitespace-nowrap">Кол-во</th>
                     <th className="font-medium p-4 whitespace-nowrap">Цена</th>
                     <th className="font-medium p-4 whitespace-nowrap">Доходность</th>
+                    <th className="font-medium p-4 whitespace-nowrap">Рейтинг</th>
                     <th className="font-medium p-4 min-w-[200px]">Сигналы</th>
                     <th className="font-medium p-4 w-[50px]"></th>
                   </tr>
@@ -321,6 +331,15 @@ export default function InvestmentsPage() {
                           <span className={`inline-block px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] ${item.bond.current_yield ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'}`}>
                             {item.bond.current_yield ? `${item.bond.current_yield}%` : "—"}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          {item.bond.rating_ru ? (
+                            <span className={`inline-block px-2 py-1 rounded-md border text-xs font-semibold ${getRatingColor(item.bond.rating_ru)}`}>
+                              {item.bond.rating_ru}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--muted)] text-sm">—</span>
+                          )}
                         </td>
                         <td className="p-4">
                           {addingSignalFor === item.bond.id ? (

@@ -62,7 +62,8 @@ async def get_portfolio(
                 "name": b.name,
                 "shortname": b.shortname,
                 "current_price": b.current_price,
-                "current_yield": b.current_yield
+                "current_yield": b.current_yield,
+                "rating_ru": b.rating_ru
             }
         })
         

@@ -12,6 +12,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.bond import Bond, BondSignal
 from app.models.user import User
 from app.core.config import get_settings
+from scripts.bond_ratings_loop import run_sync as sync_bond_ratings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -116,9 +117,20 @@ async def check_signals():
             await db.commit()
 
 async def main():
+    loop_count = 0
     while True:
+        # Update ratings once per 24 hours (96 loops * 15m = 24h)
+        if loop_count % 96 == 0:
+            logger.info("Daily rating sync triggered...")
+            try:
+                await sync_bond_ratings()
+            except Exception as e:
+                logger.error(f"Error syncing ratings: {e}")
+
         logger.info("Checking bond signals...")
         await check_signals()
+        
+        loop_count += 1
         logger.info("Sleeping for 15 minutes...")
         await asyncio.sleep(60 * 15)
 

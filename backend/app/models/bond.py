@@ -13,6 +13,7 @@ class Bond(Base):
     shortname: Mapped[str] = mapped_column(String(255), nullable=False)
     current_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     current_yield: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rating_ru: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_traded: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
