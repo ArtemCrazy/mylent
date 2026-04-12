@@ -28,6 +28,8 @@ type SignalItem = {
 };
 
 export default function InvestmentsPage() {
+  const [activeTab, setActiveTab] = useState<"bonds" | "stocks">("bonds");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<[string, string, string, string]>>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -123,7 +125,36 @@ export default function InvestmentsPage() {
     <div className="p-4 md:p-6 lg:max-w-6xl lg:mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-[var(--foreground)]">Инвестиции</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex space-x-2 border-b border-[var(--border)] mb-6">
+        <button
+          onClick={() => setActiveTab("bonds")}
+          className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "bonds"
+              ? "border-[var(--accent)] text-[var(--accent)]"
+              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          Облигации
+        </button>
+        <button
+          onClick={() => setActiveTab("stocks")}
+          className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "stocks"
+              ? "border-[var(--accent)] text-[var(--accent)]"
+              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          Акции
+        </button>
+      </div>
+
+      {activeTab === "stocks" ? (
+        <div className="pt-8 text-center text-[var(--muted)]">
+          <p>Раздел акций пока в разработке. Скоро здесь появится поиск и портфель акций Московской биржи.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Search */}
         <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-5 shadow-sm">
           <h2 className="text-[var(--foreground)] font-semibold text-lg mb-4">Поиск на MOEX</h2>
@@ -248,6 +279,8 @@ export default function InvestmentsPage() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
