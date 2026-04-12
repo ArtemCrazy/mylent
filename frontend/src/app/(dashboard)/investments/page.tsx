@@ -29,7 +29,7 @@ type SignalItem = {
 
 export default function InvestmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Array<[string, string, string, string]>>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
@@ -87,6 +87,7 @@ export default function InvestmentsPage() {
       setSearchQuery("");
       setSearchResults([]);
     } catch (e) {
+      console.error(e);
       alert("Ошибка при добавлении в портфель");
     }
   };
@@ -114,6 +115,7 @@ export default function InvestmentsPage() {
       fetchData();
       setSignalForm({ ...signalForm, target_value: "" });
     } catch (error) {
+      console.error(error);
       alert("Ошибка при добавлении сигнала");
     }
   };
@@ -148,7 +150,7 @@ export default function InvestmentsPage() {
           </div>
 
           <div className="max-h-[300px] overflow-y-auto space-y-2">
-            {searchResults.map((res: any, idx: number) => (
+            {searchResults.map((res: [string, string, string, string], idx: number) => (
               <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-[var(--accent)] transition-colors">
                 <div className="mb-2 sm:mb-0">
                   <p className="font-medium text-sm text-[var(--foreground)]">{res[2] || res[1]}</p>
