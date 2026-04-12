@@ -39,6 +39,10 @@ class BondSignal(Base):
     condition_type: Mapped[str] = mapped_column(String(50), nullable=False)  # price_less, price_greater, yield_greater, news_mention, etc.
     target_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    news_category: Mapped[str | None] = mapped_column(String(100), default="investments", nullable=True)
+    cron_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notify_telegram: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     bond: Mapped["Bond"] = relationship("Bond")

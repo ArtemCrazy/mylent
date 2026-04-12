@@ -8,6 +8,7 @@ import { api, type Signal, type Source } from "@/lib/api";
 export default function SignalsPage() {
   const router = useRouter();
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [bondSignals, setBondSignals] = useState<any[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -19,8 +20,12 @@ export default function SignalsPage() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.signals.list(), api.sources.list()])
-      .then(([s, src]) => { setSignals(s); setSources(src); })
+    Promise.all([api.signals.list(), api.sources.list(), api.investments.portfolio()])
+      .then(([s, src, p]) => { 
+        setSignals(s); 
+        setSources(src); 
+        setBondSignals((p.signals as any[]) || []); 
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -154,14 +159,17 @@ export default function SignalsPage() {
       )}
 
       {/* Signals list */}
-      {signals.length === 0 && !showCreate ? (
+      {signals.length === 0 && bondSignals.length === 0 && !showCreate ? (
         <div className="text-center py-12 text-[var(--muted)]">
           <p className="text-lg mb-2">Нет сигналов</p>
           <p className="text-sm">Создайте сигнал, чтобы получать уведомления при упоминании ваших активов</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {signals.map((sig) => (
+        <div className="space-y-6">
+          {signals.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-medium text-[var(--muted)] px-1 mb-2">Текстовые сигналы (Парсер)</h2>
+              {signals.map((sig) => (
             <Link
               key={sig.id}
               href={`/signals/${sig.id}`}
@@ -191,6 +199,44 @@ export default function SignalsPage() {
               </svg>
             </Link>
           ))}
+            </div>
+          )}
+
+          {bondSignals.length > 0 && (
+            <div className="space-y-3 mt-8">
+              <div className="flex items-center justify-between px-1 mb-2">
+                <h2 className="text-sm font-medium text-[var(--muted)]">Сигналы по облигациям</h2>
+                <Link href="/investments/bonds?tab=signals" className="text-xs text-[var(--accent)] hover:underline">
+                  Управление
+                </Link>
+              </div>
+              {bondSignals.map((sig: any) => (
+                <div
+                  key={`bond-${sig.id}`}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--card)] opacity-90"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-lg shrink-0 text-white">
+                    ₽
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-[var(--foreground)]">{sig.bond?.shortname}</span>
+                      {!sig.is_active && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--background)] text-[var(--muted)]">сработал/выкл</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-[var(--muted)] mt-0.5">
+                      {sig.condition_type === "price_less" && `Упадет ниже ${sig.target_value}`}
+                      {sig.condition_type === "price_greater" && `Вырастет выше ${sig.target_value}`}
+                      {sig.condition_type === "yield_greater" && `Доходность > ${sig.target_value}%`}
+                      {sig.condition_type === "price_change_drop_greater" && `Падение > ${sig.target_value}%`}
+                      {sig.condition_type === "news_mention" && `Упоминание в новостях (Категория: ${sig.news_category || "investments"})`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -61,20 +61,27 @@ export default function InvestmentsPage() {
 
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [signals, setSignals] = useState<SignalItem[]>([]);
+  const [sources, setSources] = useState<{ id: number; category: string | null }[]>([]);
 
   // For inline signal creation in portfolio table
   const [addingSignalFor, setAddingSignalFor] = useState<number | null>(null);
-  const [signalForm, setSignalForm] = useState<{condition_type: string, target_value: string}>({
+  const [signalForm, setSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
     condition_type: "price_less",
     target_value: "",
+    news_category: "investments",
+    cron_minutes: 15,
+    notify_telegram: true
   });
 
   // For bulk signal creation
   const [selectedBonds, setSelectedBonds] = useState<Set<number>>(new Set());
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
-  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string}>({
+  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
     condition_type: "price_less",
     target_value: "",
+    news_category: "investments",
+    cron_minutes: 15,
+    notify_telegram: true
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -108,9 +115,12 @@ export default function InvestmentsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await api.investments.portfolio();
+      const p = api.investments.portfolio();
+      const s = api.sources.list();
+      const [data, srcs] = await Promise.all([p, s]);
       setPortfolio((data.portfolio as PortfolioItem[]) || []);
       setSignals((data.signals as SignalItem[]) || []);
+      setSources(srcs);
     } catch (e) {
       console.error(e);
     }
@@ -169,11 +179,14 @@ export default function InvestmentsPage() {
       await api.investments.addSignal({
           bond_id: bondId,
           condition_type: signalForm.condition_type,
-          target_value: signalForm.condition_type === "news_mention" ? 0 : parseFloat(signalForm.target_value)
+          target_value: signalForm.condition_type === "news_mention" ? 0 : parseFloat(signalForm.target_value),
+          news_category: signalForm.news_category,
+          cron_minutes: signalForm.cron_minutes,
+          notify_telegram: signalForm.notify_telegram
       });
       fetchData();
       setAddingSignalFor(null);
-      setSignalForm({ condition_type: "price_less", target_value: "" });
+      setSignalForm({ condition_type: "price_less", target_value: "", news_category: "investments", cron_minutes: 15, notify_telegram: true });
     } catch (error) {
       console.error(error);
       alert("Ошибка при добавлении сигнала");
@@ -188,7 +201,10 @@ export default function InvestmentsPage() {
       await api.investments.addSignalBulk({
         bond_ids: Array.from(selectedBonds),
         condition_type: bulkSignalForm.condition_type,
-        target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value)
+        target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value),
+        news_category: bulkSignalForm.news_category,
+        cron_minutes: bulkSignalForm.cron_minutes,
+        notify_telegram: bulkSignalForm.notify_telegram
       });
       fetchData();
       setBulkModalOpen(false);
@@ -370,11 +386,15 @@ export default function InvestmentsPage() {
                             <span className="text-[var(--muted)] text-sm">—</span>
                           )}
                         </td>
-                        <td className="p-4">
+                        <td className="p-4 relative">
                           {addingSignalFor === item.bond.id ? (
-                            <form className="flex gap-2" onSubmit={(e) => addSignal(e, item.bond.id)}>
+                            <form className="flex flex-col gap-2 relative z-10 p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl" onSubmit={(e) => addSignal(e, item.bond.id)}>
+                              <div className="flex justify-between">
+                                <span className="text-xs font-semibold text-[var(--muted)]">Новый сигнал</span>
+                                <button type="button" onClick={() => setAddingSignalFor(null)} className="text-[var(--muted)] hover:text-[var(--foreground)]">✕</button>
+                              </div>
                               <select
-                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none max-w-[120px]"
+                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
                                 value={signalForm.condition_type}
                                 onChange={e => setSignalForm({ ...signalForm, condition_type: e.target.value })}
                               >
@@ -386,23 +406,42 @@ export default function InvestmentsPage() {
                               {signalForm.condition_type !== "news_mention" && (
                                 <input
                                   type="number" step="0.01" required placeholder="Значение"
-                                  className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-20"
+                                  className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
                                   value={signalForm.target_value}
                                   onChange={e => setSignalForm({ ...signalForm, target_value: e.target.value })}
                                 />
                               )}
-                              <button type="submit" className="text-xs bg-blue-500/10 text-blue-500 font-medium px-2 py-1 rounded hover:bg-blue-500/20">
-                                Сохранить
-                              </button>
-                              <button type="button" onClick={() => setAddingSignalFor(null)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
-                                ✕
+                              {signalForm.condition_type === "news_mention" && (
+                                <>
+                                  <select
+                                    className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
+                                    value={signalForm.news_category}
+                                    onChange={e => setSignalForm({ ...signalForm, news_category: e.target.value })}
+                                  >
+                                    {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
+                                      <option key={cat} value={cat as string}>{cat}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-full"
+                                    value={signalForm.cron_minutes}
+                                    onChange={e => setSignalForm({ ...signalForm, cron_minutes: Number(e.target.value) })}
+                                  >
+                                    <option value="15">Проверять каждые 15 мин</option>
+                                    <option value="60">Проверять каждый час</option>
+                                    <option value="1440">Проверять раз в день</option>
+                                  </select>
+                                </>
+                              )}
+                              <button type="submit" className="text-xs bg-blue-500 text-white font-medium px-2 py-1 rounded hover:bg-blue-600 transition-colors w-full mt-1">
+                                Сохранить вариант
                               </button>
                             </form>
                           ) : (
                             <button
                               onClick={() => {
                                 setAddingSignalFor(item.bond.id);
-                                setSignalForm({ condition_type: "price_less", target_value: "" });
+                                setSignalForm({ condition_type: "price_less", target_value: "", news_category: "investments", cron_minutes: 15, notify_telegram: true });
                               }}
                               className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
                             >
@@ -574,6 +613,40 @@ export default function InvestmentsPage() {
                     value={bulkSignalForm.target_value}
                     onChange={e => setBulkSignalForm({...bulkSignalForm, target_value: e.target.value})}
                   />
+                </div>
+              )}
+
+              {bulkSignalForm.condition_type === "news_mention" && (
+                <div className="animate-fade-in space-y-4">
+                  <div>
+                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Категория новостей (Парсер)</label>
+                    <select
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      value={bulkSignalForm.news_category}
+                      onChange={e => setBulkSignalForm({...bulkSignalForm, news_category: e.target.value})}
+                    >
+                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
+                        <option key={cat} value={cat as string}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Периодичность проверки (Крон)</label>
+                    <select
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      value={bulkSignalForm.cron_minutes}
+                      onChange={e => setBulkSignalForm({...bulkSignalForm, cron_minutes: Number(e.target.value)})}
+                    >
+                      <option value="15">Каждые 15 минут</option>
+                      <option value="60">Каждый час</option>
+                      <option value="360">Раз в 6 часов</option>
+                      <option value="1440">Раз в день</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={bulkSignalForm.notify_telegram} onChange={e => setBulkSignalForm({...bulkSignalForm, notify_telegram: e.target.checked})} />
+                    <span className="font-medium text-sm text-[var(--foreground)]">Прислать уведомление в Telegram (Бот)</span>
+                  </label>
                 </div>
               )}
               

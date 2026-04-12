@@ -73,6 +73,11 @@ async def get_portfolio(
             "id": sig.id,
             "condition_type": sig.condition_type,
             "target_value": sig.target_value,
+            "news_category": sig.news_category,
+            "cron_minutes": sig.cron_minutes,
+            "notify_telegram": sig.notify_telegram,
+            "is_active": sig.is_active,
+            "created_at": sig.created_at,
             "bond": {
                 "id": b.id,
                 "shortname": b.shortname,
@@ -156,6 +161,9 @@ async def create_signal(
     bond_id = payload.get("bond_id")
     condition_type = payload.get("condition_type")
     target_value = payload.get("target_value")
+    news_category = payload.get("news_category", "investments")
+    cron_minutes = payload.get("cron_minutes", 15)
+    notify_telegram = payload.get("notify_telegram", True)
     
     if not bond_id or not condition_type:
         raise HTTPException(status_code=400, detail="Missing fields")
@@ -177,12 +185,19 @@ async def create_signal(
     
     if sig:
         sig.target_value = val
+        sig.news_category = news_category
+        sig.cron_minutes = cron_minutes
+        sig.notify_telegram = notify_telegram
+        sig.is_active = True
     else:
         sig = BondSignal(
             user_id=user.id,
             bond_id=bond_id,
             condition_type=condition_type,
             target_value=val,
+            news_category=news_category,
+            cron_minutes=cron_minutes,
+            notify_telegram=notify_telegram,
             is_active=True
         )
         db.add(sig)
@@ -200,6 +215,9 @@ async def create_signals_bulk(
     bond_ids = payload.get("bond_ids", [])
     condition_type = payload.get("condition_type")
     target_value = payload.get("target_value")
+    news_category = payload.get("news_category", "investments")
+    cron_minutes = payload.get("cron_minutes", 15)
+    notify_telegram = payload.get("notify_telegram", True)
     
     if not bond_ids or not condition_type:
         raise HTTPException(status_code=400, detail="Missing fields")
@@ -223,12 +241,19 @@ async def create_signals_bulk(
         
         if sig:
             sig.target_value = val
+            sig.news_category = news_category
+            sig.cron_minutes = cron_minutes
+            sig.notify_telegram = notify_telegram
+            sig.is_active = True
         else:
             sig = BondSignal(
                 user_id=user.id,
                 bond_id=bond_id,
                 condition_type=condition_type,
                 target_value=val,
+                news_category=news_category,
+                cron_minutes=cron_minutes,
+                notify_telegram=notify_telegram,
                 is_active=True
             )
             db.add(sig)

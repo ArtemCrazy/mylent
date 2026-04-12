@@ -68,7 +68,7 @@ def extract_keywords_from_bond_name(name: str, shortname: str) -> list[str]:
     cleaned = re.sub(r'\b\d+[А-Яа-яa-zA-Z-]*\b', '', cleaned)
     cleaned = re.sub(r'[^\w\s]', ' ', cleaned)
     
-    words = [w.strip() for w in cleaned.split() if len(w.strip()) > 3]
+    words = [w.strip() for w in cleaned.split() if len(w.strip()) > 3 and not (w.strip().isdigit())]
     
     short_cleaned = re.sub(r'[\"\'«»]', '', shortname or '')
     short_cleaned = re.sub(r'\b\d+[А-Яа-яa-zA-Z-]*\b', '', short_cleaned)
@@ -83,12 +83,13 @@ def extract_keywords_from_bond_name(name: str, shortname: str) -> list[str]:
         
     return list(keywords)
 
-async def check_news_mentions(db, signals, since_dt):
+async def check_news_mentions(db, signals, since_dt, force_category=None):
     # Fetch recent investment posts
-    stmt = select(Post).join(Source).where(
-        Source.category == "investments",
-        Post.imported_at >= since_dt
-    )
+    where_clauses = [Post.imported_at >= since_dt]
+    if force_category:
+        where_clauses.append(Source.category == force_category)
+        
+    stmt = select(Post).join(Source).where(*where_clauses)
     res = await db.execute(stmt)
     recent_posts = res.scalars().all()
     
@@ -117,11 +118,28 @@ async def check_news_mentions(db, signals, since_dt):
 
 async def check_signals():
     async with AsyncSessionLocal() as db:
+        now_utc = datetime.now(timezone.utc)
+        
         # Get all active signals
         stmt_sig = select(BondSignal, Bond).join(Bond).where(BondSignal.is_active == True)
         res_sig = await db.execute(stmt_sig)
-        signals = res_sig.all()
+        all_signals = res_sig.all()
         
+        signals_to_check = []
+        for sig, b in all_signals:
+            if not sig.last_checked_at:
+                signals_to_check.append((sig, b))
+                continue
+            
+            # Use safe generic check
+            elapsed_mins = (now_utc - sig.last_checked_at.replace(tzinfo=timezone.utc)).total_seconds() / 60
+            if elapsed_mins >= (sig.cron_minutes or 15):
+                signals_to_check.append((sig, b))
+                
+        if not signals_to_check:
+            logger.info("No bonds due for signal check.")
+            return
+
         # Get all portfolio bonds
         from app.models.bond import PortfolioBond
         stmt_port = select(Bond).join(PortfolioBond)
@@ -130,13 +148,13 @@ async def check_signals():
         
         # Prepare unique secids to query (both portfolio bonds and signal bonds)
         secids = set(b.secid for b in portfolio_bonds if b.secid)
-        secids.update(b.secid for _, b in signals if b.secid)
+        secids.update(b.secid for _, b in signals_to_check if b.secid)
         
         if not secids:
             logger.info("No active bonds to track.")
             return
             
-        logger.info(f"Checking prices for {len(secids)} bonds...")
+        logger.info(f"Checking {len(signals_to_check)} signals for {len(secids)} bonds...")
         
         async with httpx.AsyncClient() as client:
             prices_updates = {}
@@ -154,7 +172,8 @@ async def check_signals():
                         b.current_yield = yld
                         
             # Check conditions
-            for sig, b in signals:
+            for sig, b in signals_to_check:
+                sig.last_checked_at = now_utc
                 updates = prices_updates.get(b.secid, {})
                 c_price = updates.get("price")
                 c_yield = updates.get("yield")
@@ -185,20 +204,29 @@ async def check_signals():
                 if triggered:
                     logger.info(f"Signal triggered [{sig.id}]: {b.shortname} condition {sig.condition_type} {sig.target_value} (Current: {val})")
                     # In MyLent context, we'll deactivate it and log.
-                    # Later, this could be tied into the Feed or WebSocket Notifications.
                     sig.is_active = False
+                    # TODO: If sig.notify_telegram is true, invoke Tg alert
 
-            # Check news mentions for the last 15 minutes
-            fifteen_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=15)
-            await check_news_mentions(db, signals, fifteen_mins_ago)
+            # Group news constraints by category
+            category_map = {}
+            for sig, b in signals_to_check:
+                c = sig.news_category or "investments"
+                if c not in category_map:
+                    category_map[c] = []
+                category_map[c].append((sig, b))
+
+            for cat, c_signals in category_map.items():
+                max_cron = max([s.cron_minutes for s, b in c_signals]) or 15
+                since_ago = now_utc - timedelta(minutes=max_cron + 5)
+                await check_news_mentions(db, c_signals, since_ago, force_category=cat)
 
             await db.commit()
 
 async def main():
     loop_count = 0
     while True:
-        # Update ratings once per 24 hours (96 loops * 15m = 24h)
-        if loop_count % 96 == 0:
+        # Update ratings once per 24 hours (288 loops * 5m = 24h)
+        if loop_count % 288 == 0:
             logger.info("Daily rating sync triggered...")
             try:
                 await sync_bond_ratings()
@@ -209,8 +237,8 @@ async def main():
         await check_signals()
         
         loop_count += 1
-        logger.info("Sleeping for 15 minutes...")
-        await asyncio.sleep(60 * 15)
+        logger.info("Sleeping for 5 minutes...")
+        await asyncio.sleep(60 * 5)
 
 if __name__ == "__main__":
     try:
