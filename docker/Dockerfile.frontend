@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 FROM base AS builder
 WORKDIR /app
 COPY frontend/ .
-RUN npm ci
+RUN npm install
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
