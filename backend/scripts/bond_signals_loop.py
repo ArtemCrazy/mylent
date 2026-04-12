@@ -50,16 +50,25 @@ async def fetch_bond_data(session: httpx.AsyncClient, secid: str):
 async def check_signals():
     async with AsyncSessionLocal() as db:
         # Get all active signals
-        stmt = select(BondSignal, Bond).join(Bond).where(BondSignal.is_active == True)
-        res = await db.execute(stmt)
-        signals = res.all()
+        stmt_sig = select(BondSignal, Bond).join(Bond).where(BondSignal.is_active == True)
+        res_sig = await db.execute(stmt_sig)
+        signals = res_sig.all()
         
-        if not signals:
-            logger.info("No active signals found.")
+        # Get all portfolio bonds
+        from app.models.bond import PortfolioBond
+        stmt_port = select(Bond).join(PortfolioBond)
+        res_port = await db.execute(stmt_port)
+        portfolio_bonds = res_port.scalars().all()
+        
+        # Prepare unique secids to query (both portfolio bonds and signal bonds)
+        secids = set(b.secid for b in portfolio_bonds if b.secid)
+        secids.update(b.secid for _, b in signals if b.secid)
+        
+        if not secids:
+            logger.info("No active bonds to track.")
             return
-
-        # Prepare unique secids to query
-        secids = set(b.secid for _, b in signals if b.secid)
+            
+        logger.info(f"Checking prices for {len(secids)} bonds...")
         
         async with httpx.AsyncClient() as client:
             prices_updates = {}
