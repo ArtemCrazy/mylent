@@ -21,8 +21,7 @@ jobs:
           script: |
             set -e
             cd /root/mylent
-            git fetch origin main
-            git reset --hard origin/main
+            git pull origin main
 
             DOMAIN="mylent.ru"
             # Empty API URL = relative calls via nginx (works with both HTTP and HTTPS)
