@@ -16,6 +16,7 @@ from app.models.source import Source
 from app.core.config import get_settings
 from scripts.bond_ratings_loop import run_sync as sync_bond_ratings
 from datetime import datetime, timezone, timedelta
+import re
 from scripts.bond_ratings_loop import run_sync as sync_bond_ratings
 
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +59,30 @@ async def fetch_bond_data(session: httpx.AsyncClient, secid: str):
         logger.error(f"Error fetching data for secid {secid}: {e}")
     return None, None, None
 
+def extract_keywords_from_bond_name(name: str, shortname: str) -> list[str]:
+    """Extrapolate base issuer names from formal bond titles for news matching."""
+    noise = r'(?i)\b(ооо|пао|ао|зао|пк|гк|хк|мфк|мкк|оао|гк|группа|компания|микрофинансовая|лизинговая|банк|сб|россии|серия|выпуск|бо|р|p|r)\b'
+    
+    cleaned = re.sub(noise, '', name or '')
+    cleaned = re.sub(r'[\"\'«»]', '', cleaned)
+    cleaned = re.sub(r'\b\d+[А-Яа-яa-zA-Z-]*\b', '', cleaned)
+    cleaned = re.sub(r'[^\w\s]', ' ', cleaned)
+    
+    words = [w.strip() for w in cleaned.split() if len(w.strip()) > 3]
+    
+    short_cleaned = re.sub(r'[\"\'«»]', '', shortname or '')
+    short_cleaned = re.sub(r'\b\d+[А-Яа-яa-zA-Z-]*\b', '', short_cleaned)
+    short_words = [w.strip() for w in short_cleaned.split() if len(w.strip()) > 3]
+    
+    keywords = set()
+    if words:
+        # Take the first main word
+        keywords.add(words[0].lower())
+    if short_words:
+        keywords.add(short_words[0].lower())
+        
+    return list(keywords)
+
 async def check_news_mentions(db, signals, since_dt):
     # Fetch recent investment posts
     stmt = select(Post).join(Source).where(
@@ -75,7 +100,11 @@ async def check_news_mentions(db, signals, since_dt):
     
     for sig, b in signals:
         if sig.condition_type == "news_mention":
-            keywords = [k.lower() for k in [b.shortname, b.name, b.isin] if k]
+            keywords = extract_keywords_from_bond_name(b.name, b.shortname)
+            if not keywords:
+                # Fallback
+                keywords = [b.isin.lower()]
+                
             # Simple keyword search in any recent post
             for kw in keywords:
                 if kw and kw in text_corpus:
