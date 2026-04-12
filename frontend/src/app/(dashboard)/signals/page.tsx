@@ -136,7 +136,7 @@ export default function SignalsPage() {
   const removeBondSignal = async (id: number) => {
     if (!confirm("Удалить сигнал?")) return;
     try {
-      await api.investments.deleteSignal(id);
+      await api.investments.removeSignal(id);
       fetchSettingsData();
     } catch {
       alert("Ошибка при удалении");
@@ -164,25 +164,23 @@ export default function SignalsPage() {
       preview_text: feedItem.post?.text || feedItem.message || "",
       original_url: feedItem.post?.original_url || null,
       source_id: 0,
+      external_id: "",
       published_at: feedItem.post?.created_at || feedItem.created_at,
-      digest_summary: null,
+      imported_at: feedItem.post?.created_at || feedItem.created_at,
+      updated_at: feedItem.post?.created_at || feedItem.created_at,
       media_json: defaultMediaJson,
+      language: "ru",
+      read_status: feedItem.is_read ? "read" : "unread",
       is_favorite: false,
       is_hidden: false,
-      is_read: feedItem.is_read,
+      is_archived: false,
+      ai_analysis: null,
       source: feedItem.post?.source_title ? {
         id: 0,
         type: "telegram",
         title: feedItem.post.source_title,
-        slug: feedItem.post.source_slug,
         category: null,
-        url: null,
-        is_active: true,
-        show_in_feed: true,
-        priority: 1,
-        config_json: null,
-        last_synced_at: null,
-        created_at: feedItem.created_at
+        config_json: null
       } : null
     };
   }

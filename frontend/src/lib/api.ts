@@ -212,7 +212,7 @@ export const api = {
     addSignalBulk: (body: { bond_ids: number[], condition_type: string, target_value: number | null, news_category?: string, cron_minutes?: number, notify_telegram?: boolean }) => request<{status: string, created: number}>("/investments/signals/bulk", { method: "POST", body: JSON.stringify(body) }),
     updateSignal: (id: number, body: { condition_type?: string, target_value?: number | null, news_category?: string, cron_minutes?: number, notify_telegram?: boolean, is_active?: boolean }) => request<void>(`/investments/signals/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     removeSignal: (id: number) => request<void>(`/investments/signals/${id}`, { method: "DELETE" }),
-    getBondSignalFeed: (id: number) => request<{ feed: BondSignalAlert[] }>(`/investments/signals/${id}/feed`),
+    getBondSignalFeed: (id: number) => request<{ feed: BondSignalAlert[], signal: { bond: { shortname: string }, [key: string]: unknown } }>(`/investments/signals/${id}/feed`),
     markBondSignalRead: (id: number) => request<void>(`/investments/signals/${id}/read`, { method: "POST" }),
     search: (q: string) => request<{ results?: [string, string, string, string][] }>(`/investments/search?q=${encodeURIComponent(q)}`),
   },
