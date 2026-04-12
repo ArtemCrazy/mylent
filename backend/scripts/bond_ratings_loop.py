@@ -115,8 +115,8 @@ async def fetch_smartlab_ratings() -> Dict[str, str]:
                 for col in cols:
                     text = col.get_text(strip=True)
                     # Rating usually matches ruAAA, ruA+, BB-(RU) etc. Or just one of the standard rating strings.
-                    if text and re.match(r"^(ru|RU|A|B|C|D).*?(AAA|AA|A|BBB|BB|B|CCC|CC|C|D).*?", text, re.IGNORECASE):
-                        if len(text) <= 8 and text != "RU": # "RU" alone is country, etc. "ruAAA" is length 5.
+                    if text and re.match(r"^(ru|RU)?(AAA|AA|A|BBB|BB|B|CCC|CC|C|D)[\+\-]?(\(RU\)|ru|\.ru)?$", text, re.IGNORECASE):
+                        if len(text) <= 10 and text.upper() != "RU": # "RU" alone is country.
                             rating = text
                             break
                             
