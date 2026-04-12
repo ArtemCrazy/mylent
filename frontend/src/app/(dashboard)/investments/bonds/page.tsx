@@ -29,7 +29,7 @@ type SignalItem = {
   news_category: string | null;
   cron_minutes: number;
   notify_telegram: boolean;
-  bond: { shortname: string; isin: string; id: number };
+  bond: { shortname: string; isin: string; id: number; current_price?: number; current_yield?: number; rating_ru?: string };
 };
 
 export default function InvestmentsPage() {
@@ -554,8 +554,8 @@ export default function InvestmentsPage() {
 
       {/* SIGNALS TAB */}
       {mainTab === "signals" && (
-        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
+        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col mt-6">
+          <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-[var(--card)]">
             <h2 className="text-[var(--foreground)] font-semibold text-lg">Активные сигналы</h2>
             <button onClick={() => setMainTab("portfolio")} className="text-[var(--accent)] text-sm hover:underline">
               + Добавить из портфеля
@@ -563,56 +563,142 @@ export default function InvestmentsPage() {
           </div>
           
           {signals.length === 0 ? (
-            <div className="text-center p-12 border border-[var(--border)] border-dashed rounded-xl">
+            <div className="text-center p-12">
               <p className="text-[var(--muted)]">У вас пока нет активных сигналов.</p>
-              <p className="text-[var(--muted)] text-sm mt-2">Вы можете создать сигнал, перейдя в &quot;Мой портфель&quot;. Бот уведомит вас, когда цена достигнет цели.</p>
+              <p className="text-[var(--muted)] text-sm mt-2">Вы можете создать сигнал, перейдя в &quot;Мой портфель&quot;.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {signals.map(sig => (
-                <div key={sig.id} className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl flex justify-between items-center group hover:border-[var(--accent)] transition-colors">
-                  <div>
-                    <p className="font-semibold text-[var(--foreground)] mb-1">{sig.bond.shortname}</p>
-                    <div className="inline-flex items-center space-x-2 text-sm bg-blue-500/10 text-blue-500 px-2 py-1 rounded">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                      <span>
-                        {sig.condition_type === "price_less" && `Цена упадёт ниже ${sig.target_value}`}
-                        {sig.condition_type === "price_greater" && `Цена вырастет выше ${sig.target_value}`}
-                        {sig.condition_type === "yield_greater" && `Доходность > ${sig.target_value}%`}
-                        {sig.condition_type === "yield_less" && `Доходность < ${sig.target_value}%`}
-                        {sig.condition_type === "price_change_drop_greater" && `Падение за сессию > ${sig.target_value}%`}
-                        {sig.condition_type === "price_change_grow_greater" && `Рост за сессию > ${sig.target_value}%`}
-                        {sig.condition_type === "news_mention" && `Упоминание в новостях`}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <button 
-                      onClick={() => {
-                        setEditingSignalId(sig.id);
-                        setEditSignalForm({
-                          condition_type: sig.condition_type,
-                          target_value: sig.target_value ? sig.target_value.toString() : "",
-                          news_category: sig.news_category || "investments",
-                          cron_minutes: sig.cron_minutes || 15,
-                          notify_telegram: sig.notify_telegram !== false
-                        });
-                      }}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card-hover)] text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors mr-2"
-                      title="Редактировать сигнал"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                    </button>
-                    <button 
-                      onClick={() => removeSignal(sig.id)} 
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card-hover)] text-[var(--muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                      title="Удалить сигнал"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto text-sm">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[var(--card-hover)] text-[var(--muted)] border-b border-[var(--border)]">
+                    <th className="font-medium p-4 w-[40px]">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer"
+                        onChange={(e) => {
+                          const bondIds = Array.from(new Set(signals.map(s => s.bond.id)));
+                          if (e.target.checked) setSelectedBonds(new Set(bondIds));
+                          else setSelectedBonds(new Set());
+                        }}
+                        checked={signals.length > 0 && Array.from(new Set(signals.map(s => s.bond.id))).every(id => selectedBonds.has(id))}
+                      />
+                    </th>
+                    <th className="font-medium p-4 whitespace-nowrap">Название / ISIN</th>
+                    <th className="font-medium p-4 whitespace-nowrap">Цена</th>
+                    <th className="font-medium p-4 whitespace-nowrap">Доходность</th>
+                    <th className="font-medium p-4 whitespace-nowrap">Рейтинг</th>
+                    <th className="font-medium p-4 min-w-[200px]">Сигналы</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {Object.values(signals.reduce((acc, sig) => {
+                    if (!acc[sig.bond.id]) {
+                      acc[sig.bond.id] = { bond: sig.bond, signals: [] };
+                    }
+                    acc[sig.bond.id].signals.push(sig);
+                    return acc;
+                  }, {} as Record<number, { bond: SignalItem["bond"], signals: SignalItem[] }>)).map((item) => (
+                    <tr key={`bond-sig-${item.bond.id}`} className="hover:bg-[var(--card-hover)] transition-colors group cursor-pointer" onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('button')) return;
+                        const newSet = new Set(selectedBonds);
+                        if (newSet.has(item.bond.id)) newSet.delete(item.bond.id);
+                        else newSet.add(item.bond.id);
+                        setSelectedBonds(newSet);
+                    }}>
+                      <td className="p-4 w-[40px]">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer pointer-events-none"
+                          checked={selectedBonds.has(item.bond.id)}
+                          readOnly
+                        />
+                      </td>
+                      <td className="p-4 flex items-center gap-3">
+                        {(() => {
+                          const avatar = getAvatarProps(item.bond.shortname);
+                          return (
+                            <div 
+                              className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm"
+                              style={{ backgroundColor: avatar.bgColor, color: avatar.color }}
+                            >
+                              {avatar.initial}
+                            </div>
+                          );
+                        })()}
+                        <div>
+                          <p className="font-semibold text-[var(--foreground)]">{item.bond.shortname}</p>
+                          <p className="text-xs text-[var(--muted)]">{item.bond.isin}</p>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium text-[var(--foreground)]">
+                          {item.bond.current_price !== undefined && item.bond.current_price !== null ? `${item.bond.current_price}%` : '—'}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium text-[var(--foreground)]">
+                          {item.bond.current_yield !== undefined && item.bond.current_yield !== null ? `${item.bond.current_yield}%` : '—'}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium border ${getRatingColor(item.bond.rating_ru || "")}`}>
+                          {item.bond.rating_ru || "Нет"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-2">
+                          {item.signals.map(sig => (
+                            <div key={sig.id} className="flex justify-between items-center gap-3 bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-1.5 hover:border-[var(--accent)] transition-colors">
+                              <div className="inline-flex items-center space-x-2 text-xs bg-blue-500/10 text-blue-500 px-2 py-1 rounded w-fit">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                <span>
+                                  {sig.condition_type === "price_less" && `Цена < ${sig.target_value}`}
+                                  {sig.condition_type === "price_greater" && `Цена > ${sig.target_value}`}
+                                  {sig.condition_type === "yield_greater" && `Доходность > ${sig.target_value}%`}
+                                  {sig.condition_type === "yield_less" && `Доходность < ${sig.target_value}%`}
+                                  {sig.condition_type === "price_change_drop_greater" && `Падение > ${sig.target_value}%`}
+                                  {sig.condition_type === "price_change_grow_greater" && `Рост > ${sig.target_value}%`}
+                                  {sig.condition_type === "news_mention" && `Новостной парсер`}
+                                </span>
+                              </div>
+                              <div className="flex items-center">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingSignalId(sig.id);
+                                    setEditSignalForm({
+                                      condition_type: sig.condition_type,
+                                      target_value: sig.target_value ? sig.target_value.toString() : "",
+                                      news_category: sig.news_category || "investments",
+                                      cron_minutes: sig.cron_minutes || 15,
+                                      notify_telegram: sig.notify_telegram !== false
+                                    });
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors mr-1"
+                                  title="Редактировать сигнал"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSignal(sig.id);
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                                  title="Удалить сигнал"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -703,13 +789,30 @@ export default function InvestmentsPage() {
       )}
 
       {/* STICKY BULK ACTION BAR */}
-      {selectedBonds.size > 0 && mainTab === "portfolio" && (
+      {selectedBonds.size > 0 && mainTab !== "search" && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--card)] border border-[var(--border)] shadow-2xl rounded-full p-2 px-6 flex items-center gap-6 z-40 animate-fade-in shadow-black/20">
           <span className="font-medium text-[var(--foreground)] pl-2">Выбрано {selectedBonds.size}</span>
           <div className="w-px h-6 bg-[var(--border)]"></div>
           <button onClick={() => setBulkModalOpen(true)} className="bg-[var(--accent)] text-white px-5 py-2 rounded-full font-semibold hover:opacity-90 shadow-sm transition-opacity">
-            Настроить сигналы ({selectedBonds.size})
+            Настроить ({selectedBonds.size})
           </button>
+          
+          {mainTab === "signals" && (
+            <button 
+              onClick={async () => {
+                if (!confirm("Вы уверены, что хотите удалить ВСЕ сигналы у выбранных облигаций?")) return;
+                const signalsToDelete = signals.filter(s => selectedBonds.has(s.bond.id));
+                for (const sig of signalsToDelete) {
+                  await api.investments.removeSignal(sig.id).catch(console.error);
+                }
+                setSelectedBonds(new Set());
+                fetchData();
+              }} 
+              className="text-red-500 hover:bg-red-500/10 px-4 py-2 rounded-full font-medium transition-colors"
+            >
+              Удалить сигналы
+            </button>
+          )}
         </div>
       )}
 

@@ -81,7 +81,10 @@ async def get_portfolio(
             "bond": {
                 "id": b.id,
                 "shortname": b.shortname,
-                "isin": b.isin
+                "isin": b.isin,
+                "current_price": b.current_price,
+                "current_yield": b.current_yield,
+                "rating_ru": b.rating_ru
             }
         })
 
