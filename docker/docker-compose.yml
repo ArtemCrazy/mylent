@@ -107,6 +107,21 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # Обработка инвестиционных сигналов (курсы MOEX и триггеры)
+  bond_signals:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    command: python -m scripts.bond_signals_loop
+    environment:
+      DATABASE_URL: postgresql+asyncpg://mylent:mylent@postgres:5432/mylent
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
   frontend:
     build:
       context: ..
