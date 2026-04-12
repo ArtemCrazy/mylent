@@ -37,7 +37,7 @@ export const CATEGORY_DEFS = [
   { value: "sport", label: "Спорт", icon: "⚽", gradient: g(4) },
   { value: "humor", label: "Юмор", icon: "😄", gradient: g(5) },
   { value: "space", label: "Космос", icon: "🚀", gradient: g(6) },
-  { value: "investments", label: "Инвестиции", icon: "📈", gradient: g(7) },
+  { value: "investments", label: "Облигации", icon: "📈", gradient: g(7) },
   { value: "other", label: "Другое", icon: "📌", gradient: g(8) },
 
   // Категории со скриншота (и их иконки)

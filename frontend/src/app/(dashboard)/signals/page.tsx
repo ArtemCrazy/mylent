@@ -43,7 +43,7 @@ export default function SignalsPage() {
   const [loadingFeed, setLoadingFeed] = useState(true);
 
   // Create form state
-  const [name, setName] = useState("Инвестиции");
+  const [name, setName] = useState("Облигации");
   const [selectedSources, setSelectedSources] = useState<number[]>([]);
   const [assetsText, setAssetsText] = useState("");
   const [creating, setCreating] = useState(false);
