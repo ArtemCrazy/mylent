@@ -482,7 +482,19 @@ export default function InvestmentsPage() {
               <p className="text-[var(--muted)]">У вас пока нет активных сигналов.</p>
             </div>
           ) : (
-            <div className="p-6 grid gap-4 grid-cols-1 md:grid-cols-2">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-[var(--card-hover)] text-[var(--muted)]">
+                  <tr>
+                    <th className="px-6 py-4 font-medium first:rounded-tl-lg">Условие</th>
+                    <th className="px-6 py-4 font-medium">Периодичность</th>
+                    <th className="px-6 py-4 font-medium">Уведомления</th>
+                    <th className="px-6 py-4 font-medium w-40 text-center">Охват</th>
+                    <th className="px-6 py-4 font-medium w-32 text-center">Статус</th>
+                    <th className="px-6 py-4 font-medium last:rounded-tr-lg w-24"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)] relative border-b border-[var(--border)]">
               {(() => {
                 const groups = Object.values(signals.reduce((acc, sig) => {
                   const key = `${sig.condition_type}_${sig.target_value}_${sig.news_category}_${sig.cron_minutes}_${sig.notify_telegram}`;
@@ -512,67 +524,98 @@ export default function InvestmentsPage() {
                   if (group.condition_type === "news_mention") badgeColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
 
                   return (
-                    <div key={group.key} className="flex flex-col justify-between bg-[var(--background)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--accent)] transition-colors relative group">
-                      <div>
-                        <div className="flex items-center justify-between mb-3 gap-4">
-                          <h3 className="font-semibold text-[var(--foreground)] text-base break-words">
-                            {group.condition_type === "price_less" && `Цена упадет < ${group.target_value}`}
-                            {group.condition_type === "price_greater" && `Цена вырастет > ${group.target_value}`}
-                            {group.condition_type === "yield_greater" && `Доходность > ${group.target_value}%`}
-                            {group.condition_type === "yield_less" && `Доходность < ${group.target_value}%`}
-                            {group.condition_type === "price_change_drop_greater" && `Дневное падение > ${group.target_value}%`}
-                            {group.condition_type === "price_change_grow_greater" && `Дневной рост > ${group.target_value}%`}
-                            {group.condition_type === "news_mention" && (group.news_category ? `Упоминание в новостях (Кат: ${getCategoryDef(group.news_category)?.label || group.news_category})` : "Упоминание в новостях (Любая категория)")}
-                          </h3>
-                          <div className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-md border ${badgeColor}`}>
+                    <tr key={group.key} className="group hover:bg-[var(--card-hover)] transition-colors cursor-pointer" onClick={() => {
+                      setEditingGroup(group);
+                      setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
+                      setBulkSignalForm({
+                        condition_type: group.condition_type,
+                        target_value: group.target_value ? group.target_value.toString() : "",
+                        news_category: group.news_category || "",
+                        cron_minutes: group.cron_minutes || 1,
+                        notify_telegram: group.notify_telegram !== false
+                      });
+                      setBulkModalOpen(true);
+                    }}>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[var(--foreground)] truncate max-w-[300px]">
+                          {group.condition_type === "price_less" && `Цена упадет < ${group.target_value}`}
+                          {group.condition_type === "price_greater" && `Цена вырастет > ${group.target_value}`}
+                          {group.condition_type === "yield_greater" && `Доходность > ${group.target_value}%`}
+                          {group.condition_type === "yield_less" && `Доходность < ${group.target_value}%`}
+                          {group.condition_type === "price_change_drop_greater" && `Дневное падение > ${group.target_value}%`}
+                          {group.condition_type === "price_change_grow_greater" && `Дневной рост > ${group.target_value}%`}
+                          {group.condition_type === "news_mention" && (group.news_category ? `Новости (Кат: ${getCategoryDef(group.news_category)?.label || group.news_category})` : "Новости (Любая)")}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-[var(--muted)]">
+                        {group.cron_minutes === 0 ? "Мгновенная" : `Раз в ${group.cron_minutes} мин`}
+                      </td>
+                      <td className="px-6 py-4">
+                        {group.notify_telegram ? (
+                           <span className="inline-flex items-center gap-1.5 text-[var(--accent)] text-xs font-medium">
+                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                             Telegram
+                           </span>
+                        ) : (
+                           <span className="text-[var(--muted)] text-xs">В приложении</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="font-medium text-[var(--foreground)]">{group.bonds.length} шт.</span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                         <div className={`inline-flex items-center px-2 py-0.5 text-[11px] uppercase tracking-wider font-bold rounded border ${badgeColor}`}>
                              {group.signals.reduce((acc: number, s: SignalItem) => acc + (s.unread_count || 0), 0) > 0 ? (
-                               <span className="flex items-center gap-1.5 justify-center"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div> Активен</span>
+                               <span className="flex items-center gap-1.5">
+                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-[pulse_1s_ease-in-out_infinite] shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div> 
+                                 Активен
+                               </span>
                              ) : "Мониторинг"}
-                          </div>
-                        </div>
-
-                        <div className="mb-4 text-sm text-[var(--muted)]">
-                          Применено: <span className="font-medium text-[var(--foreground)]">{group.bonds.length} шт.</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-[var(--border)]">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingGroup(group);
-                            setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
-                            setBulkSignalForm({
-                              condition_type: group.condition_type,
-                              target_value: group.target_value ? group.target_value.toString() : "",
-                              news_category: group.news_category || "",
-                              cron_minutes: group.cron_minutes || 1,
-                              notify_telegram: group.notify_telegram !== false
-                            });
-                            setBulkModalOpen(true);
-                          }}
-                          className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors border border-transparent hover:border-[var(--accent)]/20"
-                        >
-                          Настроить
-                        </button>
-                        <button 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (confirm('Удалить отслеживание этого сигнала для всех выбранных бумаг?')) {
-                              const ids = group.signals.map((s: SignalItem) => s.id);
-                              await Promise.all(ids.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
-                              fetchData();
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
+                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setEditingGroup(group);
+                               setSelectedBonds(new Set(group.bonds.map((b: SignalItem["bond"]) => b.id)));
+                               setBulkSignalForm({
+                                 condition_type: group.condition_type,
+                                 target_value: group.target_value ? group.target_value.toString() : "",
+                                 news_category: group.news_category || "",
+                                 cron_minutes: group.cron_minutes || 1,
+                                 notify_telegram: group.notify_telegram !== false
+                               });
+                               setBulkModalOpen(true);
+                             }}
+                             title="Настроить"
+                             className="p-1.5 text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--background)] rounded-lg transition-colors border border-transparent hover:border-[var(--accent)]/20"
+                           >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                           </button>
+                           <button 
+                             onClick={async (e) => {
+                               e.stopPropagation();
+                               if (confirm('Удалить отслеживание этого сигнала для всех выбранных бумаг?')) {
+                                 const ids = group.signals.map((s: SignalItem) => s.id);
+                                 await Promise.all(ids.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
+                                 fetchData();
+                               }
+                             }}
+                             title="Удалить"
+                             className="p-1.5 text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                           >
+                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                           </button>
+                         </div>
+                      </td>
+                    </tr>
                   );
                 });
               })()}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
