@@ -72,6 +72,7 @@ async function request<T>(
 }
 
 export const api = {
+  _request: request,
   auth: {
     login: (login: string, password: string) =>
       request<{ access_token: string }>("/auth/login", {
