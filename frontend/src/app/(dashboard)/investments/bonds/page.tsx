@@ -186,34 +186,48 @@ export default function InvestmentsPage() {
     if (!bulkSignalForm.target_value && bulkSignalForm.condition_type !== "news_mention") return;
     
     try {
-      if (editingGroup) {
-         const oldSignalIds = editingGroup.signals.map((s: SignalItem) => s.id);
-         if (editingGroup.condition_type !== bulkSignalForm.condition_type) {
-            await Promise.all(oldSignalIds.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
-         } else {
-            const bondsToDelete = editingGroup.bonds.filter((b: SignalItem["bond"]) => !selectedBonds.has(b.id));
-            const signalIdsToDelete = bondsToDelete.map((b: SignalItem["bond"]) => editingGroup.signals.find((s: SignalItem) => s.bond.id === b.id)?.id).filter(Boolean) as number[];
-            if (signalIdsToDelete.length) {
-               await Promise.all(signalIdsToDelete.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
-            }
-         }
-      }
+      const payload = {
+        name: bulkSignalForm.name || "",
+        condition_type: bulkSignalForm.condition_type,
+        target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value),
+        news_category: bulkSignalForm.news_category,
+        cron_minutes: bulkSignalForm.cron_minutes,
+        notify_telegram: bulkSignalForm.notify_telegram
+      };
 
-      if (selectedBonds.size > 0) {
-        await api.investments.addSignalBulk({
-          bond_ids: Array.from(selectedBonds),
-          condition_type: bulkSignalForm.condition_type,
-          target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value),
-          news_category: bulkSignalForm.news_category,
-          cron_minutes: bulkSignalForm.cron_minutes,
-          notify_telegram: bulkSignalForm.notify_telegram
-        });
+      if (editingGroup) {
+         const oldBondIds = new Set(editingGroup.bonds.map((b: any) => b.id));
+         const bondsToKeep = Array.from(selectedBonds).filter(id => oldBondIds.has(id));
+         const bondsToAdd = Array.from(selectedBonds).filter(id => !oldBondIds.has(id));
+         const bondsToRemove = editingGroup.bonds.filter((b: any) => !selectedBonds.has(b.id));
+
+         // Remove unchecked
+         const signalIdsToDelete = bondsToRemove.map((b: any) => editingGroup.signals.find((s: any) => s.bond.id === b.id)?.id).filter(Boolean) as number[];
+         if (signalIdsToDelete.length > 0) {
+            await Promise.all(signalIdsToDelete.map((id: number) => api.investments.removeSignal(id).catch(()=>{})));
+         }
+
+         // Update existing
+         const signalIdsToUpdate = bondsToKeep.map((bond_id: number) => editingGroup.signals.find((s: any) => s.bond.id === bond_id)?.id).filter(Boolean) as number[];
+         if (signalIdsToUpdate.length > 0) {
+            await Promise.all(signalIdsToUpdate.map((id: number) => api.investments.updateSignal(id, payload).catch(()=>{})));
+         }
+
+         // Add new
+         if (bondsToAdd.length > 0) {
+            await api.investments.addSignalBulk({ ...payload, bond_ids: bondsToAdd });
+         }
+      } else {
+        if (selectedBonds.size > 0) {
+          await api.investments.addSignalBulk({ ...payload, bond_ids: Array.from(selectedBonds) });
+        }
       }
 
       fetchData();
       setBulkModalOpen(false);
       setSelectedBonds(new Set());
       setEditingGroup(null);
+
     } catch (e) {
       console.error(e);
       alert("Ошибка при сохранении сигнала");
