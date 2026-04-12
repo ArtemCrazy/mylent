@@ -31,6 +31,21 @@ export default function InvestmentsPage() {
   const [mainTab, setMainTab] = useState<"portfolio" | "search" | "signals">("portfolio");
   const [assetTab, setAssetTab] = useState<"bonds" | "stocks">("bonds");
 
+  // Helper to generate consistent colors based on a string
+  const getAvatarProps = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash) % 360;
+    return {
+        initial: name.charAt(0).toUpperCase(),
+        color: `hsl(${h}, 70%, 50%)`,
+        bgColor: `hsl(${h}, 70%, 90%)`,
+        darkBgColor: `hsl(${h}, 50%, 20%)`
+    };
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<[string, string, string, string]>>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -218,9 +233,22 @@ export default function InvestmentsPage() {
                   ) : (
                     portfolio.map((item) => (
                       <tr key={item.id} className="hover:bg-[var(--card-hover)] transition-colors group">
-                        <td className="p-4">
-                          <p className="font-semibold text-[var(--foreground)]">{item.bond.shortname}</p>
-                          <p className="text-xs text-[var(--muted)]">{item.bond.isin}</p>
+                        <td className="p-4 flex items-center gap-3">
+                          {(() => {
+                            const avatar = getAvatarProps(item.bond.shortname);
+                            return (
+                              <div 
+                                className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm"
+                                style={{ backgroundColor: avatar.bgColor, color: avatar.color }}
+                              >
+                                {avatar.initial}
+                              </div>
+                            );
+                          })()}
+                          <div>
+                            <p className="font-semibold text-[var(--foreground)]">{item.bond.shortname}</p>
+                            <p className="text-xs text-[var(--muted)]">{item.bond.isin}</p>
+                          </div>
                         </td>
                         <td className="p-4 px-6 font-medium text-[var(--foreground)]">
                           {item.quantity} шт.
