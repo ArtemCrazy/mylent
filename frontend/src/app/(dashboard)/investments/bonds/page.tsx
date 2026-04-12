@@ -49,6 +49,8 @@ type SignalGroup = {
 
 export default function InvestmentsPage() {
   const [mainTab, setMainTab] = useState<"portfolio" | "search" | "signals">("portfolio");
+  const [sortField, setSortField] = useState<"name" | "quantity" | "price" | "yield" | "rating" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const getAvatarProps = (name: string) => {
     let hash = 0;
@@ -234,6 +236,42 @@ export default function InvestmentsPage() {
     }
   };
 
+  const handleSort = (field: "name" | "quantity" | "price" | "yield" | "rating") => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedPortfolio = [...portfolio].sort((a, b) => {
+    if (!sortField) return 0;
+    let valA: string | number = 0;
+    let valB: string | number = 0;
+    
+    if (sortField === "name") {
+      valA = a.bond.shortname?.toLowerCase() || "";
+      valB = b.bond.shortname?.toLowerCase() || "";
+    } else if (sortField === "quantity") {
+      valA = a.quantity || 0;
+      valB = b.quantity || 0;
+    } else if (sortField === "price") {
+      valA = a.bond.current_price || 0;
+      valB = b.bond.current_price || 0;
+    } else if (sortField === "yield") {
+      valA = a.bond.current_yield || 0;
+      valB = b.bond.current_yield || 0;
+    } else if (sortField === "rating") {
+      valA = a.bond.rating_ru?.toUpperCase().replace("RU", "") || "";
+      valB = b.bond.rating_ru?.toUpperCase().replace("RU", "") || "";
+    }
+
+    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
   return (
     <div className="p-4 md:p-6 lg:max-w-6xl lg:mx-auto">
       <div className="mb-4">
@@ -326,11 +364,21 @@ export default function InvestmentsPage() {
                         checked={portfolio.length > 0 && selectedBonds.size === portfolio.length}
                       />
                     </th>
-                    <th className="font-medium p-4 whitespace-nowrap">Название / ISIN</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Кол-во</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Цена</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Доходность</th>
-                    <th className="font-medium p-4 whitespace-nowrap">Рейтинг</th>
+                    <th className="font-medium p-4 whitespace-nowrap cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={() => handleSort("name")}>
+                      Название / ISIN {sortField === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="font-medium p-4 whitespace-nowrap cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={() => handleSort("quantity")}>
+                      Кол-во {sortField === "quantity" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="font-medium p-4 whitespace-nowrap cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={() => handleSort("price")}>
+                      Цена {sortField === "price" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="font-medium p-4 whitespace-nowrap cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={() => handleSort("yield")}>
+                      Доходность {sortField === "yield" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="font-medium p-4 whitespace-nowrap cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={() => handleSort("rating")}>
+                      Рейтинг {sortField === "rating" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
 
                     <th className="font-medium p-4 w-[50px]"></th>
                   </tr>
@@ -343,7 +391,7 @@ export default function InvestmentsPage() {
                       </td>
                     </tr>
                   ) : (
-                    portfolio.map((item) => (
+                    sortedPortfolio.map((item) => (
                       <tr key={item.id} className="hover:bg-[var(--card-hover)] transition-colors group cursor-pointer" onClick={() => {
                           const newSet = new Set(selectedBonds);
                           if (newSet.has(item.bond.id)) newSet.delete(item.bond.id);
