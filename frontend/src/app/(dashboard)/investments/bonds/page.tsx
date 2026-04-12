@@ -69,6 +69,14 @@ export default function InvestmentsPage() {
     target_value: "",
   });
 
+  // For bulk signal creation
+  const [selectedBonds, setSelectedBonds] = useState<Set<number>>(new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkSignalForm, setBulkSignalForm] = useState<{condition_type: string, target_value: string}>({
+    condition_type: "price_less",
+    target_value: "",
+  });
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showInMenu, setShowInMenu] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -155,13 +163,13 @@ export default function InvestmentsPage() {
 
   const addSignal = async (e: React.FormEvent, bondId: number) => {
     e.preventDefault();
-    if (!signalForm.target_value) return;
+    if (!signalForm.target_value && signalForm.condition_type !== "news_mention") return;
 
     try {
       await api.investments.addSignal({
           bond_id: bondId,
           condition_type: signalForm.condition_type,
-          target_value: parseFloat(signalForm.target_value)
+          target_value: signalForm.condition_type === "news_mention" ? 0 : parseFloat(signalForm.target_value)
       });
       fetchData();
       setAddingSignalFor(null);
@@ -169,6 +177,26 @@ export default function InvestmentsPage() {
     } catch (error) {
       console.error(error);
       alert("Ошибка при добавлении сигнала");
+    }
+  };
+
+  const addBulkSignals = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkSignalForm.target_value && bulkSignalForm.condition_type !== "news_mention") return;
+    
+    try {
+      await api.investments.addSignalBulk({
+        bond_ids: Array.from(selectedBonds),
+        condition_type: bulkSignalForm.condition_type,
+        target_value: bulkSignalForm.condition_type === "news_mention" ? null : parseFloat(bulkSignalForm.target_value)
+      });
+      fetchData();
+      setBulkModalOpen(false);
+      setSelectedBonds(new Set());
+      setMainTab("signals");
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при массовом добавлении");
     }
   };
 
@@ -260,6 +288,17 @@ export default function InvestmentsPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[var(--card-hover)] text-[var(--muted)] text-sm border-b border-[var(--border)]">
+                    <th className="font-medium p-4 w-[40px]">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedBonds(new Set(portfolio.map(p => p.bond.id)));
+                          else setSelectedBonds(new Set());
+                        }}
+                        checked={portfolio.length > 0 && selectedBonds.size === portfolio.length}
+                      />
+                    </th>
                     <th className="font-medium p-4 whitespace-nowrap">Название / ISIN</th>
                     <th className="font-medium p-4 whitespace-nowrap">Кол-во</th>
                     <th className="font-medium p-4 whitespace-nowrap">Цена</th>
@@ -272,13 +311,26 @@ export default function InvestmentsPage() {
                 <tbody className="divide-y divide-[var(--border)] text-sm">
                   {portfolio.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center p-8 text-[var(--muted)]">
+                      <td colSpan={7} className="text-center p-8 text-[var(--muted)]">
                         Портфель пуст. Перейдите в &quot;Поиск активов&quot;, чтобы добавить облигации.
                       </td>
                     </tr>
                   ) : (
                     portfolio.map((item) => (
-                      <tr key={item.id} className="hover:bg-[var(--card-hover)] transition-colors group">
+                      <tr key={item.id} className="hover:bg-[var(--card-hover)] transition-colors group cursor-pointer" onClick={() => {
+                          const newSet = new Set(selectedBonds);
+                          if (newSet.has(item.bond.id)) newSet.delete(item.bond.id);
+                          else newSet.add(item.bond.id);
+                          setSelectedBonds(newSet);
+                      }}>
+                        <td className="p-4 w-[40px]">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-[var(--border)] text-[var(--accent)] cursor-pointer pointer-events-none"
+                            checked={selectedBonds.has(item.bond.id)}
+                            readOnly
+                          />
+                        </td>
                         <td className="p-4 flex items-center gap-3">
                           {(() => {
                             const avatar = getAvatarProps(item.bond.shortname);
@@ -322,19 +374,23 @@ export default function InvestmentsPage() {
                           {addingSignalFor === item.bond.id ? (
                             <form className="flex gap-2" onSubmit={(e) => addSignal(e, item.bond.id)}>
                               <select
-                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none"
+                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none max-w-[120px]"
                                 value={signalForm.condition_type}
                                 onChange={e => setSignalForm({ ...signalForm, condition_type: e.target.value })}
                               >
-                                <option value="price_less">Меньше</option>
-                                <option value="price_greater">Больше</option>
+                                <option value="price_less">Цена меньше</option>
+                                <option value="price_greater">Цена больше</option>
+                                <option value="price_change_drop_greater">Падение за день &gt; %</option>
+                                <option value="news_mention">В новостях</option>
                               </select>
-                              <input
-                                type="number" step="0.01" required placeholder="Значение"
-                                className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-20"
-                                value={signalForm.target_value}
-                                onChange={e => setSignalForm({ ...signalForm, target_value: e.target.value })}
-                              />
+                              {signalForm.condition_type !== "news_mention" && (
+                                <input
+                                  type="number" step="0.01" required placeholder="Значение"
+                                  className="bg-[var(--background)] text-xs border border-[var(--border)] rounded px-2 py-1 outline-none w-20"
+                                  value={signalForm.target_value}
+                                  onChange={e => setSignalForm({ ...signalForm, target_value: e.target.value })}
+                                />
+                              )}
                               <button type="submit" className="text-xs bg-blue-500/10 text-blue-500 font-medium px-2 py-1 rounded hover:bg-blue-500/20">
                                 Сохранить
                               </button>
@@ -447,10 +503,13 @@ export default function InvestmentsPage() {
                     <div className="inline-flex items-center space-x-2 text-sm bg-blue-500/10 text-blue-500 px-2 py-1 rounded">
                       <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
                       <span>
-                        {sig.condition_type === "price_less" && `Цена упадёт ниже ${sig.target_value}%`}
-                        {sig.condition_type === "price_greater" && `Цена вырастет выше ${sig.target_value}%`}
+                        {sig.condition_type === "price_less" && `Цена упадёт ниже ${sig.target_value}`}
+                        {sig.condition_type === "price_greater" && `Цена вырастет выше ${sig.target_value}`}
                         {sig.condition_type === "yield_greater" && `Доходность > ${sig.target_value}%`}
                         {sig.condition_type === "yield_less" && `Доходность < ${sig.target_value}%`}
+                        {sig.condition_type === "price_change_drop_greater" && `Падение за сессию > ${sig.target_value}%`}
+                        {sig.condition_type === "price_change_grow_greater" && `Рост за сессию > ${sig.target_value}%`}
+                        {sig.condition_type === "news_mention" && `Упоминание в новостях`}
                       </span>
                     </div>
                   </div>
@@ -465,6 +524,66 @@ export default function InvestmentsPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* STICKY BULK ACTION BAR */}
+      {selectedBonds.size > 0 && mainTab === "portfolio" && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--card)] border border-[var(--border)] shadow-2xl rounded-full p-2 px-6 flex items-center gap-6 z-40 animate-fade-in shadow-black/20">
+          <span className="font-medium text-[var(--foreground)] pl-2">Выбрано {selectedBonds.size}</span>
+          <div className="w-px h-6 bg-[var(--border)]"></div>
+          <button onClick={() => setBulkModalOpen(true)} className="bg-[var(--accent)] text-white px-5 py-2 rounded-full font-semibold hover:opacity-90 shadow-sm transition-opacity">
+            Настроить сигналы ({selectedBonds.size})
+          </button>
+        </div>
+      )}
+
+      {/* BULK SIGNAL MODAL */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-[var(--foreground)]">Сигналы ({selectedBonds.size} шт.)</h3>
+              <button type="button" onClick={() => setBulkModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--foreground)] p-1">✕</button>
+            </div>
+            <form onSubmit={addBulkSignals} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Событие</label>
+                <select
+                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                  value={bulkSignalForm.condition_type}
+                  onChange={e => setBulkSignalForm({...bulkSignalForm, condition_type: e.target.value})}
+                >
+                  <option value="price_less">Достижение цены (Упадет ниже)</option>
+                  <option value="price_greater">Достижение цены (Вырастет выше)</option>
+                  <option value="yield_less">Достижение доходности (Меньше)</option>
+                  <option value="yield_greater">Достижение доходности (Больше)</option>
+                  <option value="price_change_drop_greater">Сильное падение % (за сессию)</option>
+                  <option value="price_change_grow_greater">Сильный рост % (за сессию)</option>
+                  <option value="news_mention">Упоминание названия в новостях (парсер)</option>
+                </select>
+              </div>
+              
+              {bulkSignalForm.condition_type !== "news_mention" && (
+                <div className="animate-fade-in">
+                  <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Значение (например: 5.5)</label>
+                  <input
+                    type="number" step="0.01" required
+                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                    placeholder="Укажите порог"
+                    value={bulkSignalForm.target_value}
+                    onChange={e => setBulkSignalForm({...bulkSignalForm, target_value: e.target.value})}
+                  />
+                </div>
+              )}
+              
+              <div className="pt-4">
+                <button type="submit" className="w-full bg-[var(--accent)] text-white px-4 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
+                  Установить на {selectedBonds.size} бумаг
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

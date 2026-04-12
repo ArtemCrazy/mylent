@@ -157,8 +157,11 @@ async def create_signal(
     condition_type = payload.get("condition_type")
     target_value = payload.get("target_value")
     
-    if not bond_id or not condition_type or target_value is None:
+    if not bond_id or not condition_type:
         raise HTTPException(status_code=400, detail="Missing fields")
+        
+    if target_value is None and condition_type != "news_mention":
+        raise HTTPException(status_code=400, detail="Target value required for this condition type")
         
     # Look for existing active signal for the same bond and type to avoid dupes
     stmt = select(BondSignal).where(
@@ -170,20 +173,69 @@ async def create_signal(
     res = await db.execute(stmt)
     sig = res.scalars().first()
     
+    val = float(target_value) if target_value is not None else None
+    
     if sig:
-        sig.target_value = float(target_value)
+        sig.target_value = val
     else:
         sig = BondSignal(
             user_id=user.id,
             bond_id=bond_id,
             condition_type=condition_type,
-            target_value=float(target_value),
+            target_value=val,
             is_active=True
         )
         db.add(sig)
         
     await db.commit()
     return {"status": "ok", "id": sig.id}
+
+@router.post("/signals/bulk")
+async def create_signals_bulk(
+    payload: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Create a signal for multiple bonds at once."""
+    bond_ids = payload.get("bond_ids", [])
+    condition_type = payload.get("condition_type")
+    target_value = payload.get("target_value")
+    
+    if not bond_ids or not condition_type:
+        raise HTTPException(status_code=400, detail="Missing fields")
+        
+    if target_value is None and condition_type != "news_mention":
+        raise HTTPException(status_code=400, detail="Target value required for this condition type")
+        
+    val = float(target_value) if target_value is not None else None
+    created = 0
+    
+    for bond_id in bond_ids:
+        # Avoid dupes
+        stmt = select(BondSignal).where(
+            BondSignal.user_id == user.id,
+            BondSignal.bond_id == bond_id,
+            BondSignal.condition_type == condition_type,
+            BondSignal.is_active == True
+        )
+        res = await db.execute(stmt)
+        sig = res.scalars().first()
+        
+        if sig:
+            sig.target_value = val
+        else:
+            sig = BondSignal(
+                user_id=user.id,
+                bond_id=bond_id,
+                condition_type=condition_type,
+                target_value=val,
+                is_active=True
+            )
+            db.add(sig)
+            created += 1
+            
+    await db.commit()
+    return {"status": "ok", "created": created}
 
 @router.delete("/signals/{id}")
 async def remove_signal(

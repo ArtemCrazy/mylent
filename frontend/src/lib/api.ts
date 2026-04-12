@@ -208,6 +208,7 @@ export const api = {
     removeFromPortfolio: (id: number) => request<void>(`/investments/portfolio/${id}`, { method: "DELETE" }),
     signals: () => request<{ signals?: unknown[] }>("/investments/signals"),
     addSignal: (body: { bond_id: number, condition_type: string, target_value: number }) => request<void>("/investments/signals", { method: "POST", body: JSON.stringify(body) }),
+    addSignalBulk: (body: { bond_ids: number[], condition_type: string, target_value: number | null }) => request<{status: string, created: number}>("/investments/signals/bulk", { method: "POST", body: JSON.stringify(body) }),
     removeSignal: (id: number) => request<void>(`/investments/signals/${id}`, { method: "DELETE" }),
     search: (q: string) => request<{ results?: [string, string, string, string][] }>(`/investments/search?q=${encodeURIComponent(q)}`),
   },
