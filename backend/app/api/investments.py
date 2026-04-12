@@ -262,6 +262,54 @@ async def create_signals_bulk(
     await db.commit()
     return {"status": "ok", "created": created}
 
+@router.patch("/signals/{id}")
+async def update_signal(
+    id: int,
+    payload: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Update an existing bond signal."""
+    stmt = select(BondSignal).where(BondSignal.id == id, BondSignal.user_id == user.id)
+    res = await db.execute(stmt)
+    sig = res.scalars().first()
+    
+    if not sig:
+        raise HTTPException(status_code=404, detail="Signal not found")
+        
+    if "condition_type" in payload:
+        condition_type = payload["condition_type"]
+        target_value = payload.get("target_value")
+        if target_value is None and condition_type != "news_mention":
+            raise HTTPException(status_code=400, detail="Target value required for this condition type")
+        sig.condition_type = condition_type
+        sig.target_value = float(target_value) if target_value is not None else None
+        
+    if "target_value" in payload and "condition_type" not in payload:
+        # User only updated value
+        if payload["target_value"] is not None:
+            sig.target_value = float(payload["target_value"])
+        elif sig.condition_type != "news_mention":
+            raise HTTPException(status_code=400, detail="Target value required")
+            
+    if "news_category" in payload:
+        sig.news_category = payload["news_category"]
+    
+    if "cron_minutes" in payload:
+        sig.cron_minutes = int(payload["cron_minutes"])
+        
+    if "notify_telegram" in payload:
+        sig.notify_telegram = bool(payload["notify_telegram"])
+        
+    # User might toggle it visually if we add a switch, otherwise just implicitly true if they edit
+    if "is_active" in payload:
+        sig.is_active = bool(payload["is_active"])
+    else:
+        sig.is_active = True # reactivate on edit by default
+        
+    await db.commit()
+    return {"status": "ok"}
+
 @router.delete("/signals/{id}")
 async def remove_signal(
     id: int,

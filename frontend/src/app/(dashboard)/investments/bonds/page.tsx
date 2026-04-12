@@ -26,6 +26,9 @@ type SignalItem = {
   id: number;
   condition_type: string;
   target_value: number;
+  news_category: string | null;
+  cron_minutes: number;
+  notify_telegram: boolean;
   bond: { shortname: string; isin: string; id: number };
 };
 
@@ -62,6 +65,16 @@ export default function InvestmentsPage() {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [signals, setSignals] = useState<SignalItem[]>([]);
   const [sources, setSources] = useState<{ id: number; category: string | null }[]>([]);
+
+  // For editing existing signals
+  const [editingSignalId, setEditingSignalId] = useState<number | null>(null);
+  const [editSignalForm, setEditSignalForm] = useState<{condition_type: string, target_value: string, news_category: string, cron_minutes: number, notify_telegram: boolean}>({
+    condition_type: "price_less",
+    target_value: "",
+    news_category: "investments",
+    cron_minutes: 15,
+    notify_telegram: true
+  });
 
   // For inline signal creation in portfolio table
   const [addingSignalFor, setAddingSignalFor] = useState<number | null>(null);
@@ -190,6 +203,27 @@ export default function InvestmentsPage() {
     } catch (error) {
       console.error(error);
       alert("Ошибка при добавлении сигнала");
+    }
+  };
+
+  const updateSignal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSignalId) return;
+    if (!editSignalForm.target_value && editSignalForm.condition_type !== "news_mention") return;
+
+    try {
+      await api.investments.updateSignal(editingSignalId, {
+        condition_type: editSignalForm.condition_type,
+        target_value: editSignalForm.condition_type === "news_mention" ? null : parseFloat(editSignalForm.target_value),
+        news_category: editSignalForm.news_category,
+        cron_minutes: editSignalForm.cron_minutes,
+        notify_telegram: editSignalForm.notify_telegram
+      });
+      fetchData();
+      setEditingSignalId(null);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при обновлении сигнала");
     }
   };
 
@@ -552,17 +586,119 @@ export default function InvestmentsPage() {
                       </span>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => removeSignal(sig.id)} 
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card-hover)] text-[var(--muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                    title="Удалить сигнал"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center">
+                    <button 
+                      onClick={() => {
+                        setEditingSignalId(sig.id);
+                        setEditSignalForm({
+                          condition_type: sig.condition_type,
+                          target_value: sig.target_value ? sig.target_value.toString() : "",
+                          news_category: sig.news_category || "investments",
+                          cron_minutes: sig.cron_minutes || 15,
+                          notify_telegram: sig.notify_telegram !== false
+                        });
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card-hover)] text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors mr-2"
+                      title="Редактировать сигнал"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => removeSignal(sig.id)} 
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card-hover)] text-[var(--muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                      title="Удалить сигнал"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* EDIT SIGNAL MODAL */}
+      {editingSignalId !== null && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-[var(--foreground)]">Редактировать сигнал</h3>
+              <button type="button" onClick={() => setEditingSignalId(null)} className="text-[var(--muted)] hover:text-[var(--foreground)] p-1">✕</button>
+            </div>
+            <form onSubmit={updateSignal} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Событие</label>
+                <select
+                  className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                  value={editSignalForm.condition_type}
+                  onChange={e => setEditSignalForm({...editSignalForm, condition_type: e.target.value})}
+                >
+                  <option value="price_less">Достижение цены (Упадет ниже)</option>
+                  <option value="price_greater">Достижение цены (Вырастет выше)</option>
+                  <option value="yield_less">Достижение доходности (Меньше)</option>
+                  <option value="yield_greater">Достижение доходности (Больше)</option>
+                  <option value="price_change_drop_greater">Сильное падение % (за сессию)</option>
+                  <option value="price_change_grow_greater">Сильный рост % (за сессию)</option>
+                  <option value="news_mention">Упоминание названия в новостях (парсер)</option>
+                </select>
+              </div>
+              
+              {editSignalForm.condition_type !== "news_mention" && (
+                <div className="animate-fade-in">
+                  <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Значение</label>
+                  <input
+                    type="number" step="0.01" required
+                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                    placeholder="Укажите порог"
+                    value={editSignalForm.target_value}
+                    onChange={e => setEditSignalForm({...editSignalForm, target_value: e.target.value})}
+                  />
+                </div>
+              )}
+
+              {editSignalForm.condition_type === "news_mention" && (
+                <div className="animate-fade-in space-y-4">
+                  <div>
+                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Категория новостей</label>
+                    <select
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      value={editSignalForm.news_category}
+                      onChange={e => setEditSignalForm({...editSignalForm, news_category: e.target.value})}
+                    >
+                      {Array.from(new Set(sources.map(s => s.category).filter(Boolean))).map(cat => (
+                        <option key={cat} value={cat as string}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[var(--muted)] mb-2 font-medium">Периодичность проверки</label>
+                    <select
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-4 py-2.5 outline-none focus:border-[var(--accent)] transition-colors"
+                      value={editSignalForm.cron_minutes}
+                      onChange={e => setEditSignalForm({...editSignalForm, cron_minutes: Number(e.target.value)})}
+                    >
+                      <option value="15">Каждые 15 минут</option>
+                      <option value="60">Каждый час</option>
+                      <option value="360">Раз в 6 часов</option>
+                      <option value="1440">Раз в день</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <label className="flex items-center gap-3 cursor-pointer mt-2">
+                <input type="checkbox" className="w-5 h-5 rounded border-[var(--border)] text-[var(--accent)]" checked={editSignalForm.notify_telegram} onChange={e => setEditSignalForm({...editSignalForm, notify_telegram: e.target.checked})} />
+                <span className="font-medium text-sm text-[var(--foreground)]">Уведомление в Telegram</span>
+              </label>
+              
+              <div className="pt-4">
+                <button type="submit" className="w-full bg-[var(--accent)] text-white px-4 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity flex justify-center items-center">
+                  Сохранить
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
