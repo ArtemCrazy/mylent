@@ -737,7 +737,7 @@ export default function InvestmentsPage() {
                         <div className="flex items-center gap-4 custom-control">
                           <input 
                             type="checkbox" 
-                            className="w-5 h-5 rounded border border-[var(--border)] text-[var(--accent)] shrink-0 focus:ring-0 checked:bg-[var(--accent)] bg-[var(--background)] transition-all cursor-pointer" 
+                            className="custom-checkbox shrink-0" 
                             checked={isChecked} 
                             onChange={(e) => {
                               const newSet = new Set(selectedBonds);
