@@ -531,12 +531,8 @@ export default function InvestmentsPage() {
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {group.bonds.map((b: SignalItem["bond"]) => (
-                            <span key={b.id} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--card-hover)] text-[var(--muted)] border border-[var(--border)]">
-                              {b.shortname}
-                            </span>
-                          ))}
+                        <div className="mb-4 text-sm text-[var(--muted)]">
+                          Применено: <span className="font-medium text-[var(--foreground)]">{group.bonds.length} шт.</span>
                         </div>
                       </div>
 
