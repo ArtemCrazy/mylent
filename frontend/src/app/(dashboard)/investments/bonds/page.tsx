@@ -314,7 +314,7 @@ export default function InvestmentsPage() {
                     <th className="font-medium p-4 whitespace-nowrap">Цена</th>
                     <th className="font-medium p-4 whitespace-nowrap">Доходность</th>
                     <th className="font-medium p-4 whitespace-nowrap">Рейтинг</th>
-                    <th className="font-medium p-4 min-w-[200px]">Сигналы</th>
+
                     <th className="font-medium p-4 w-[50px]"></th>
                   </tr>
                 </thead>
@@ -380,19 +380,7 @@ export default function InvestmentsPage() {
                             <span className="text-[var(--muted)] text-sm">—</span>
                           )}
                         </td>
-                        <td className="p-4 relative text-center">
-                          <button
-                            onClick={() => {
-                              setEditingGroup(null);
-                              setBulkSignalForm({ condition_type: "price_less", target_value: "", news_category: "", cron_minutes: 1, notify_telegram: true });
-                              setSelectedBonds(new Set([item.bond.id]));
-                              setBulkModalOpen(true);
-                            }}
-                            className="bg-[var(--accent)]/10 text-[var(--accent)] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[var(--accent)] hover:text-white transition-colors border border-[var(--accent)]/20 shadow-sm"
-                          >
-                            + Добавить сигнал
-                          </button>
-                        </td>
+
                         <td className="p-4 text-right">
                           <button
                             onClick={() => removeFromPortfolio(item.id)}
