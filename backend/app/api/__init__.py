@@ -9,6 +9,7 @@ from app.api.telegram_auth import router as telegram_router
 from app.api.sync import router as sync_router
 from app.api.signals import router as signals_router
 from app.api.apps import router as apps_router
+from app.api.investments import router as investments_router
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
@@ -21,3 +22,4 @@ api_router.include_router(telegram_router)
 api_router.include_router(sync_router)
 api_router.include_router(signals_router)
 api_router.include_router(apps_router)
+api_router.include_router(investments_router, prefix="/investments")

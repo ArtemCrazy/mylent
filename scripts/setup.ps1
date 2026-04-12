@@ -66,4 +66,4 @@ asyncio.run(init())
 Write-Host "`n=== Готово. ===" -ForegroundColor Green
 Write-Host "Запуск backend:  cd backend && .\.venv\Scripts\Activate.ps1 && uvicorn app.main:app --reload --port 8000"
 Write-Host "Запуск frontend: cd frontend && npm run dev"
-Write-Host "Вход: http://localhost:3000  -> Вход -> admin@mylent.local / admin"
+Write-Host "Login: http://localhost:3000 -> admin@mylent.local / admin"

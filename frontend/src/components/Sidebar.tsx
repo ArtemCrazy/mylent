@@ -44,6 +44,15 @@ const mainNav = [
     ),
   },
   {
+    href: "/investments",
+    label: "Инвестиции",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+      </svg>
+    ),
+  },
+  {
     href: "/sources",
     label: "Источники",
     icon: (
