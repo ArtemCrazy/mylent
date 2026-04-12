@@ -5,10 +5,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, type Signal, type Source } from "@/lib/api";
 
+interface BondSignalItem {
+  id: number;
+  condition_type: string;
+  target_value: number;
+  news_category: string | null;
+  cron_minutes: number;
+  notify_telegram: boolean;
+  is_active: boolean;
+  bond: {
+    id: number;
+    shortname: string;
+    isin: string;
+  };
+}
+
 export default function SignalsPage() {
   const router = useRouter();
   const [signals, setSignals] = useState<Signal[]>([]);
-  const [bondSignals, setBondSignals] = useState<any[]>([]);
+  const [bondSignals, setBondSignals] = useState<BondSignalItem[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -24,7 +39,7 @@ export default function SignalsPage() {
       .then(([s, src, p]) => { 
         setSignals(s); 
         setSources(src); 
-        setBondSignals((p.signals as any[]) || []); 
+        setBondSignals((p.signals as BondSignalItem[]) || []); 
       })
       .finally(() => setLoading(false));
   }, []);
@@ -210,7 +225,7 @@ export default function SignalsPage() {
                   Управление
                 </Link>
               </div>
-              {bondSignals.map((sig: any) => (
+              {bondSignals.map((sig: BondSignalItem) => (
                 <div
                   key={`bond-${sig.id}`}
                   className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--card)] opacity-90"
